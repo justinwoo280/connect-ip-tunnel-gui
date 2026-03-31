@@ -184,14 +184,8 @@ jobs:
           # 复制内核到 AppDir
           cp dist/connect-ip-tunnel AppDir/usr/bin/ 2>/dev/null || true
           # .desktop 文件（不能有缩进）
-          cat > AppDir/usr/share/applications/connect-ip-tunnel-gui.desktop <<'DESKTOP'
-[Desktop Entry]
-Name=Connect-IP Tunnel
-Exec=connect-ip-tunnel-gui
-Icon=connect-ip-tunnel-gui
-Type=Application
-Categories=Network;
-DESKTOP
+          printf '[Desktop Entry]\nName=Connect-IP Tunnel\nExec=connect-ip-tunnel-gui\nIcon=connect-ip-tunnel-gui\nType=Application\nCategories=Network;\n' \
+            > AppDir/usr/share/applications/connect-ip-tunnel-gui.desktop
           # 占位图标（linuxdeployqt 要求存在）
           touch AppDir/usr/share/icons/hicolor/256x256/apps/connect-ip-tunnel-gui.png
           # 找到系统 qmake

@@ -138,14 +138,8 @@ jobs:
           done
           cp "${GUI_BIN}" AppDir/usr/bin/connect-ip-tunnel-gui
           cp dist/connect-ip-tunnel AppDir/usr/bin/ 2>/dev/null || true
-          cat > AppDir/usr/share/applications/connect-ip-tunnel-gui.desktop <<'DESKTOP'
-[Desktop Entry]
-Name=Connect-IP Tunnel
-Exec=connect-ip-tunnel-gui
-Icon=connect-ip-tunnel-gui
-Type=Application
-Categories=Network;
-DESKTOP
+          printf '[Desktop Entry]\nName=Connect-IP Tunnel\nExec=connect-ip-tunnel-gui\nIcon=connect-ip-tunnel-gui\nType=Application\nCategories=Network;\n' \
+            > AppDir/usr/share/applications/connect-ip-tunnel-gui.desktop
           touch AppDir/usr/share/icons/hicolor/256x256/apps/connect-ip-tunnel-gui.png
           QMAKE=$(command -v qmake6 2>/dev/null || command -v qmake 2>/dev/null || echo "")
           wget -q -O linuxdeployqt \
