@@ -1,0 +1,230 @@
+name: Release - 发布编译
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      core_ref:
+        description: 'connect-ip-tunnel 内核分支/tag（默认 main）'
+        required: false
+        default: 'main'
+      version:
+        description: '发布版本号（手动触发时使用，例如 v1.0.0-beta）'
+        required: false
+        default: 'dev'
+
+jobs:
+  build:
+    name: 发布编译 (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64
+            os: ubuntu-latest
+            platform: linux
+            arch: amd64
+            core_goos: linux
+            core_goarch: amd64
+            gui_artifact: connect-ip-tunnel-gui
+            pkg_ext: tar.gz
+
+          - name: Linux ARM64
+            os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            core_goos: linux
+            core_goarch: arm64
+            gui_artifact: connect-ip-tunnel-gui
+            pkg_ext: tar.gz
+
+          - name: Windows x86_64
+            os: windows-latest
+            platform: windows
+            arch: amd64
+            qt_arch: win64_msvc2022_64
+            core_goos: windows
+            core_goarch: amd64
+            gui_artifact: connect-ip-tunnel-gui.exe
+            pkg_ext: zip
+
+          - name: macOS ARM64 (Apple Silicon)
+            os: macos-latest
+            platform: darwin
+            arch: arm64
+            qt_arch: clang_64
+            core_goos: darwin
+            core_goarch: arm64
+            gui_artifact: connect-ip-tunnel-gui
+            pkg_ext: tar.gz
+
+          - name: macOS x86_64
+            os: macos-13
+            platform: darwin
+            arch: amd64
+            qt_arch: clang_64
+            core_goos: darwin
+            core_goarch: amd64
+            gui_artifact: connect-ip-tunnel-gui
+            pkg_ext: tar.gz
+
+    steps:
+      - name: Checkout GUI
+        uses: actions/checkout@v4
+
+      - name: Checkout 内核
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/connect-ip-tunnel
+          ref: ${{ inputs.core_ref || 'main' }}
+          path: core
+
+      # ── 版本号 ───────────────────────────────────────────────────
+      - name: 确定版本号
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          elif [[ -n "${{ inputs.version }}" && "${{ inputs.version }}" != "dev" ]]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "pkg_name=connect-ip-tunnel-gui-${VERSION}-${{ matrix.platform }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+
+      # ── Go 编译内核 ──────────────────────────────────────────────
+      - name: 设置 Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+
+      - name: 编译内核
+        shell: bash
+        working-directory: core
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.core_goos }}
+          GOARCH: ${{ matrix.core_goarch }}
+        run: |
+          EXT=""
+          [[ "${{ matrix.platform }}" == "windows" ]] && EXT=".exe"
+          go build \
+            -ldflags="-s -w -X connect-ip-tunnel/server.Version=${{ steps.version.outputs.version }}" \
+            -trimpath \
+            -o "../dist/connect-ip-tunnel${EXT}" \
+            ./cmd/app
+
+      # ── Qt6 安装 ─────────────────────────────────────────────────
+      - name: 安装 Qt6 + 构建工具（Linux）
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            qt6-base-dev libqt6widgets6 libqt6network6 \
+            cmake ninja-build
+
+      - name: 安装 Qt6（Windows/macOS）
+        if: matrix.platform != 'linux'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.*'
+          arch: ${{ matrix.qt_arch }}
+          cache: true
+
+      # ── 编译 GUI ─────────────────────────────────────────────────
+      - name: 配置 CMake
+        shell: bash
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            ${{ matrix.platform == 'linux' && '-G Ninja' || '' }}
+
+      - name: 编译 GUI
+        shell: bash
+        run: cmake --build build --config Release --parallel
+
+      # ── 收集产物 ─────────────────────────────────────────────────
+      - name: 收集产物（Linux/macOS）
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          # GUI 二进制
+          cp build/${{ matrix.gui_artifact }} dist/ 2>/dev/null || \
+          cp build/Release/${{ matrix.gui_artifact }} dist/ 2>/dev/null || true
+          # 打包
+          cd dist
+          tar -czf "../${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}" .
+          cd ..
+
+      - name: 收集产物（Windows）
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          # GUI 二进制
+          cp build/Release/${{ matrix.gui_artifact }} dist/ 2>/dev/null || \
+          cp build/${{ matrix.gui_artifact }} dist/ 2>/dev/null || true
+          # windeployqt 收集 Qt 运行时 DLL
+          QT_BIN="${QT_ROOT_DIR}/bin"
+          "${QT_BIN}/windeployqt.exe" \
+            --release \
+            --no-translations \
+            --no-system-d3d-compiler \
+            --no-opengl-sw \
+            dist/${{ matrix.gui_artifact }}
+          # 打包
+          cd dist
+          7z a "../${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}" .
+          cd ..
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.pkg_name }}
+          path: ${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}
+
+  # ── 创建 GitHub Release ─────────────────────────────────────────
+  release:
+    name: 创建 GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    # 仅 tag push 或手动指定版本号时发布
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.version != 'dev')
+    permissions:
+      contents: write
+
+    steps:
+      - name: 下载所有产物
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: 列出产物
+        run: ls -lh artifacts/
+
+      - name: 确定版本号
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Connect-IP Tunnel GUI ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'rc') }}
+          generate_release_notes: true
+          files: artifacts/*

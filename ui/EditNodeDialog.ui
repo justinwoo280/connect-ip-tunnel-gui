@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditNodeDialog</class>
+ <widget class="QDialog" name="EditNodeDialog">
+  <property name="windowTitle"><string>编辑节点</string></property>
+  <property name="minimumSize"><size><width>520</width><height>640</height></size></property>
+  <layout class="QVBoxLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+
+     <!-- ── 基本设置 ── -->
+     <widget class="QWidget" name="tabBasic">
+      <attribute name="title"><string>基本</string></attribute>
+      <layout class="QFormLayout" name="formBasic">
+       <item><widget class="QLabel"><property name="text"><string>名称</string></property></widget>
+            <widget class="QLineEdit" name="editName"/></item>
+       <item><widget class="QLabel"><property name="text"><string>服务端地址 (host:port)</string></property></widget>
+            <widget class="QLineEdit" name="editServerAddr"><property name="placeholderText"><string>proxy.example.com:443</string></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>URI</string></property></widget>
+            <widget class="QLineEdit" name="editURI"><property name="placeholderText"><string>/.well-known/masque/ip</string></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>Authority（留空同 host）</string></property></widget>
+            <widget class="QLineEdit" name="editAuthority"/></item>
+
+       <!-- 认证方式 -->
+       <item><widget class="QLabel"><property name="text"><string>认证方式</string></property></widget>
+            <widget class="QComboBox" name="comboAuthMethod">
+             <item><property name="text"><string>Bearer Token</string></property></item>
+             <item><property name="text"><string>HTTP Basic</string></property></item>
+             <item><property name="text"><string>自定义 Header</string></property></item>
+             <item><property name="text"><string>无认证</string></property></item>
+            </widget></item>
+      </layout>
+
+      <!-- Bearer Token 组 -->
+      <widget class="QGroupBox" name="groupBearer">
+       <property name="title"><string>Bearer Token</string></property>
+       <layout class="QFormLayout">
+        <item><widget class="QLabel"><property name="text"><string>Token</string></property></widget>
+             <widget class="QLineEdit" name="editBearerToken"><property name="echoMode"><enum>QLineEdit::Password</enum></property></widget></item>
+       </layout>
+      </widget>
+
+      <!-- Basic Auth 组 -->
+      <widget class="QGroupBox" name="groupBasic">
+       <property name="title"><string>HTTP Basic</string></property>
+       <layout class="QFormLayout">
+        <item><widget class="QLabel"><property name="text"><string>用户名</string></property></widget>
+             <widget class="QLineEdit" name="editBasicUser"/></item>
+        <item><widget class="QLabel"><property name="text"><string>密码</string></property></widget>
+             <widget class="QLineEdit" name="editBasicPassword"><property name="echoMode"><enum>QLineEdit::Password</enum></property></widget></item>
+       </layout>
+      </widget>
+
+      <!-- Custom Header 组 -->
+      <widget class="QGroupBox" name="groupCustomHeader">
+       <property name="title"><string>自定义 Header</string></property>
+       <layout class="QFormLayout">
+        <item><widget class="QLabel"><property name="text"><string>Header 名</string></property></widget>
+             <widget class="QLineEdit" name="editCustomHeaderName"><property name="placeholderText"><string>X-Auth-Token</string></property></widget></item>
+        <item><widget class="QLabel"><property name="text"><string>Header 值</string></property></widget>
+             <widget class="QLineEdit" name="editCustomHeaderValue"><property name="echoMode"><enum>QLineEdit::Password</enum></property></widget></item>
+       </layout>
+      </widget>
+     </widget>
+
+     <!-- ── TLS/ECH ── -->
+     <widget class="QWidget" name="tabTLS">
+      <attribute name="title"><string>TLS / ECH</string></attribute>
+      <layout class="QFormLayout">
+       <item><widget class="QLabel"><property name="text"><string>SNI（留空同 host）</string></property></widget>
+            <widget class="QLineEdit" name="editServerName"/></item>
+       <item><widget class="QLabel"><property name="text"><string>跳过证书验证</string></property></widget>
+            <widget class="QCheckBox" name="checkInsecureSkipVerify"/></item>
+       <item><widget class="QLabel"><property name="text"><string>启用后量子密钥交换 (PQC)</string></property></widget>
+            <widget class="QCheckBox" name="checkEnablePQC"/></item>
+       <item><widget class="QLabel"><property name="text"><string>使用 Mozilla CA 根证书</string></property></widget>
+            <widget class="QCheckBox" name="checkUseMozillaCA"><property name="checked"><bool>true</bool></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>使用系统 CA 根证书</string></property></widget>
+            <widget class="QCheckBox" name="checkUseSystemCAs"/></item>
+       <item><widget class="QLabel"><property name="text"><string>启用 ECH</string></property></widget>
+            <widget class="QCheckBox" name="checkEnableECH"><property name="checked"><bool>true</bool></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>ECH 查询域名</string></property></widget>
+            <widget class="QLineEdit" name="editECHDomain"><property name="placeholderText"><string>留空则同 SNI</string></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>ECH DoH 服务器</string></property></widget>
+            <widget class="QLineEdit" name="editECHDohServer"><property name="placeholderText"><string>https://cloudflare-dns.com/dns-query</string></property></widget></item>
+      </layout>
+     </widget>
+
+     <!-- ── TUN ── -->
+     <widget class="QWidget" name="tabTUN">
+      <attribute name="title"><string>TUN</string></attribute>
+      <layout class="QFormLayout">
+       <item><widget class="QLabel"><property name="text"><string>TUN 设备名</string></property></widget>
+            <widget class="QLineEdit" name="editTunName"><property name="placeholderText"><string>tun0</string></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>MTU</string></property></widget>
+            <widget class="QSpinBox" name="spinMTU">
+             <property name="minimum"><number>1280</number></property>
+             <property name="maximum"><number>65535</number></property>
+             <property name="value"><number>1400</number></property>
+            </widget></item>
+       <item><widget class="QLabel"><property name="text"><string>IPv4 CIDR（留空=服务端分配）</string></property></widget>
+            <widget class="QLineEdit" name="editIPv4CIDR"><property name="placeholderText"><string>例：10.0.0.2/24</string></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>IPv6 CIDR（留空=服务端分配）</string></property></widget>
+            <widget class="QLineEdit" name="editIPv6CIDR"><property name="placeholderText"><string>例：fd00::2/64</string></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>DNS IPv4</string></property></widget>
+            <widget class="QLineEdit" name="editDnsV4"><property name="placeholderText"><string>1.1.1.1</string></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>DNS IPv6</string></property></widget>
+            <widget class="QLineEdit" name="editDnsV6"><property name="placeholderText"><string>2606:4700:4700::1111</string></property></widget></item>
+      </layout>
+     </widget>
+
+     <!-- ── 高级 ── -->
+     <widget class="QWidget" name="tabAdvanced">
+      <attribute name="title"><string>高级</string></attribute>
+      <layout class="QFormLayout">
+       <item><widget class="QLabel"><property name="text"><string>启用 Bypass（防流量回环）</string></property></widget>
+            <widget class="QCheckBox" name="checkBypassEnable"/></item>
+       <item><widget class="QLabel"><property name="text"><string>Bypass 服务端地址</string></property></widget>
+            <widget class="QLineEdit" name="editBypassAddr"><property name="placeholderText"><string>proxy.example.com:443</string></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>允许 0-RTT</string></property></widget>
+            <widget class="QCheckBox" name="checkAllow0RTT"/></item>
+       <item><widget class="QLabel"><property name="text"><string>断线自动重连</string></property></widget>
+            <widget class="QCheckBox" name="checkEnableReconnect"><property name="checked"><bool>true</bool></property></widget></item>
+       <item><widget class="QLabel"><property name="text"><string>并行 Session 数</string></property></widget>
+            <widget class="QSpinBox" name="spinNumSessions">
+             <property name="minimum"><number>1</number></property>
+             <property name="maximum"><number>16</number></property>
+             <property name="value"><number>1</number></property>
+            </widget></item>
+      </layout>
+     </widget>
+
+    </widget>
+   </item>
+
+   <!-- 确定 / 取消 -->
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Ok|QDialogButtonBox::Cancel</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender><signal>accepted()</signal>
+   <receiver>EditNodeDialog</receiver><slot>accept()</slot>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender><signal>rejected()</signal>
+   <receiver>EditNodeDialog</receiver><slot>reject()</slot>
+  </connection>
+ </connections>
+</ui>

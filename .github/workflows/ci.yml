@@ -1,0 +1,106 @@
+name: CI - 测试编译
+
+on:
+  workflow_dispatch:
+    inputs:
+      core_ref:
+        description: 'connect-ip-tunnel 内核分支/tag（默认 main）'
+        required: false
+        default: 'main'
+
+jobs:
+  build:
+    name: 测试编译 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+            qt_arch: linux_gcc_64
+            core_suffix: linux-amd64
+          - os: windows-latest
+            platform: windows
+            arch: amd64
+            qt_arch: win64_msvc2022_64
+            core_suffix: windows-amd64.exe
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+            qt_arch: clang_64
+            core_suffix: darwin-arm64
+
+    steps:
+      - name: Checkout GUI
+        uses: actions/checkout@v4
+
+      - name: Checkout 内核
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/connect-ip-tunnel
+          ref: ${{ inputs.core_ref }}
+          path: core
+
+      # ── Go 编译内核 ──────────────────────────────────────────────
+      - name: 设置 Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+
+      - name: 编译内核
+        working-directory: core
+        run: |
+          CGO_ENABLED=0 go build \
+            -ldflags="-s -w" \
+            -trimpath \
+            -o ../core-bin/connect-ip-tunnel${{ matrix.platform == 'windows' && '.exe' || '' }} \
+            ./cmd/app
+        shell: bash
+
+      # ── Qt6 安装 ─────────────────────────────────────────────────
+      - name: 安装 Qt6（Linux）
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            qt6-base-dev libqt6widgets6 libqt6network6 \
+            cmake ninja-build
+
+      - name: 安装 Qt6（Windows/macOS）
+        if: matrix.platform != 'linux'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.*'
+          arch: ${{ matrix.qt_arch }}
+          cache: true
+
+      # ── 编译 GUI ─────────────────────────────────────────────────
+      - name: 配置 CMake（Linux）
+        if: matrix.platform == 'linux'
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: 配置 CMake（Windows/macOS）
+        if: matrix.platform != 'linux'
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release
+        shell: bash
+
+      - name: 编译 GUI
+        run: cmake --build build --config Release --parallel
+        shell: bash
+
+      - name: 上传产物（供检查）
+        uses: actions/upload-artifact@v4
+        with:
+          name: connect-ip-tunnel-gui-${{ matrix.platform }}-${{ matrix.arch }}-ci
+          retention-days: 3
+          path: |
+            build/Release/connect-ip-tunnel-gui*
+            build/connect-ip-tunnel-gui*
+            core-bin/
