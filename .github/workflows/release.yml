@@ -45,7 +45,7 @@ jobs:
             os: windows-latest
             platform: windows
             arch: amd64
-            qt_arch: win64_msvc2022_64
+            qt_arch: win64_msvc2019_64
             core_goos: windows
             core_goarch: amd64
             gui_artifact: connect-ip-tunnel-gui.exe

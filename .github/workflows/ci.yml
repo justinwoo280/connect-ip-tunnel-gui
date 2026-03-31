@@ -24,7 +24,7 @@ jobs:
           - os: windows-latest
             platform: windows
             arch: amd64
-            qt_arch: win64_msvc2022_64
+            qt_arch: win64_msvc2019_64
             core_suffix: windows-amd64.exe
           - os: macos-latest
             platform: darwin

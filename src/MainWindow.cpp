@@ -5,6 +5,7 @@
 #include <QCloseEvent>
 #include <QDateTime>
 #include <QMessageBox>
+#include <QScrollBar>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -44,6 +45,11 @@ void MainWindow::setupNodeTable()
     ui->tableNodes->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     ui->tableNodes->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     ui->tableNodes->setAlternatingRowColors(true);
+}
+
+void MainWindow::setupStatusPanel()
+{
+    // Status panel widgets are defined in the UI file; nothing extra to set up here.
 }
 
 void MainWindow::setupConnections()
