@@ -150,14 +150,85 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       # ── 收集产物 ─────────────────────────────────────────────────
-      - name: 收集产物（Linux/macOS）
-        if: matrix.platform != 'windows'
+      - name: 收集产物（macOS）
+        if: matrix.platform == 'darwin'
         shell: bash
         run: |
           mkdir -p dist
-          # GUI 二进制
-          cp build/${{ matrix.gui_artifact }} dist/ 2>/dev/null || \
-          cp build/Release/${{ matrix.gui_artifact }} dist/ 2>/dev/null || true
+          # 找到 GUI 二进制
+          GUI_BIN=""
+          for p in build/Release/${{ matrix.gui_artifact }} build/${{ matrix.gui_artifact }}; do
+            [ -f "$p" ] && GUI_BIN="$p" && break
+          done
+          # 用 macdeployqt 打包成 .app bundle（直接在原位操作）
+          cp "${GUI_BIN}" dist/${{ matrix.gui_artifact }}
+          "${QT_ROOT_DIR}/bin/macdeployqt" "dist/${{ matrix.gui_artifact }}" -verbose=1 || true
+          # 复制内核
+          cp dist/connect-ip-tunnel dist/ 2>/dev/null || true
+          # 打包
+          cd dist
+          tar -czf "../${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}" .
+          cd ..
+
+      - name: 收集产物（Linux x86_64，AppImage）
+        if: matrix.platform == 'linux' && matrix.arch == 'amd64'
+        shell: bash
+        run: |
+          mkdir -p dist AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          # 找到 GUI 二进制
+          GUI_BIN=""
+          for p in build/${{ matrix.gui_artifact }} build/Release/${{ matrix.gui_artifact }}; do
+            [ -f "$p" ] && GUI_BIN="$p" && break
+          done
+          cp "${GUI_BIN}" AppDir/usr/bin/connect-ip-tunnel-gui
+          # 复制内核到 AppDir
+          cp dist/connect-ip-tunnel AppDir/usr/bin/ 2>/dev/null || true
+          # .desktop 文件（不能有缩进）
+          cat > AppDir/usr/share/applications/connect-ip-tunnel-gui.desktop <<'DESKTOP'
+[Desktop Entry]
+Name=Connect-IP Tunnel
+Exec=connect-ip-tunnel-gui
+Icon=connect-ip-tunnel-gui
+Type=Application
+Categories=Network;
+DESKTOP
+          # 占位图标（linuxdeployqt 要求存在）
+          touch AppDir/usr/share/icons/hicolor/256x256/apps/connect-ip-tunnel-gui.png
+          # 找到系统 qmake
+          QMAKE=$(command -v qmake6 2>/dev/null || command -v qmake 2>/dev/null || echo "")
+          # 下载 linuxdeployqt（仅支持 x86_64）
+          wget -q -O linuxdeployqt \
+            https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
+          chmod +x linuxdeployqt
+          export QML_SOURCES_PATHS=.
+          export VERSION=${{ steps.version.outputs.version }}
+          if [ -n "${QMAKE}" ]; then
+            ./linuxdeployqt AppDir/usr/share/applications/connect-ip-tunnel-gui.desktop \
+              -appimage -no-translations -no-copy-copyright-files \
+              -qmake="${QMAKE}" || true
+          else
+            ./linuxdeployqt AppDir/usr/share/applications/connect-ip-tunnel-gui.desktop \
+              -appimage -no-translations -no-copy-copyright-files || true
+          fi
+          # 移动 AppImage 到 dist
+          mv Connect*.AppImage "dist/${{ steps.version.outputs.pkg_name }}.AppImage" 2>/dev/null || \
+          mv *.AppImage "dist/${{ steps.version.outputs.pkg_name }}.AppImage" 2>/dev/null || true
+          # 打包
+          cd dist
+          tar -czf "../${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}" .
+          cd ..
+
+      - name: 收集产物（Linux ARM64）
+        if: matrix.platform == 'linux' && matrix.arch == 'arm64'
+        shell: bash
+        run: |
+          mkdir -p dist
+          # 找到 GUI 二进制（ARM64 无 linuxdeployqt，直接打包二进制）
+          for p in build/${{ matrix.gui_artifact }} build/Release/${{ matrix.gui_artifact }}; do
+            [ -f "$p" ] && cp "$p" dist/ && break
+          done
+          # 复制内核
+          cp dist/connect-ip-tunnel dist/ 2>/dev/null || true
           # 打包
           cd dist
           tar -czf "../${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}" .
@@ -171,6 +242,8 @@ jobs:
           # GUI 二进制
           cp build/Release/${{ matrix.gui_artifact }} dist/ 2>/dev/null || \
           cp build/${{ matrix.gui_artifact }} dist/ 2>/dev/null || true
+          # 复制内核
+          cp dist/connect-ip-tunnel.exe dist/ 2>/dev/null || true
           # windeployqt 收集 Qt 运行时 DLL
           QT_BIN="${QT_ROOT_DIR}/bin"
           "${QT_BIN}/windeployqt.exe" \
