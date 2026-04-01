@@ -1,6 +1,8 @@
 #include "EditNodeDialog.h"
 #include "ui_EditNodeDialog.h"
 
+#include <QFileDialog>
+
 EditNodeDialog::EditNodeDialog(QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::EditNodeDialog)
@@ -8,12 +10,14 @@ EditNodeDialog::EditNodeDialog(QWidget *parent)
     ui->setupUi(this);
     setWindowTitle(tr("编辑节点"));
 
-    connect(ui->comboAuthMethod, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &EditNodeDialog::onAuthMethodChanged);
     connect(ui->checkEnableECH, &QCheckBox::toggled,
             this, &EditNodeDialog::onECHToggled);
+    connect(ui->btnBrowseCert, &QPushButton::clicked,
+            this, &EditNodeDialog::onBrowseCert);
+    connect(ui->btnBrowseKey, &QPushButton::clicked,
+            this, &EditNodeDialog::onBrowseKey);
 
-    updateVisibility();
+    updateECHVisibility();
 }
 
 EditNodeDialog::~EditNodeDialog()
@@ -25,18 +29,17 @@ void EditNodeDialog::setNode(const TunnelNode &node)
 {
     m_node = node;
 
+    // 基本
     ui->editName->setText(node.name);
     ui->editServerAddr->setText(node.serverAddr);
     ui->editURI->setText(node.uri);
     ui->editAuthority->setText(node.authority);
 
-    ui->comboAuthMethod->setCurrentIndex(static_cast<int>(node.authMethod));
-    ui->editBearerToken->setText(node.bearerToken);
-    ui->editBasicUser->setText(node.basicUser);
-    ui->editBasicPassword->setText(node.basicPassword);
-    ui->editCustomHeaderName->setText(node.customHeaderName);
-    ui->editCustomHeaderValue->setText(node.customHeaderValue);
+    // mTLS
+    ui->editClientCertFile->setText(node.clientCertFile);
+    ui->editClientKeyFile->setText(node.clientKeyFile);
 
+    // TLS/ECH
     ui->editServerName->setText(node.serverName);
     ui->checkInsecureSkipVerify->setChecked(node.insecureSkipVerify);
     ui->checkEnablePQC->setChecked(node.enablePQC);
@@ -46,39 +49,35 @@ void EditNodeDialog::setNode(const TunnelNode &node)
     ui->editECHDomain->setText(node.echDomain);
     ui->editECHDohServer->setText(node.echDohServer);
 
+    // TUN
     ui->editTunName->setText(node.tunName);
     ui->spinMTU->setValue(node.mtu);
-    ui->editIPv4CIDR->setText(node.ipv4CIDR);
-    ui->editIPv6CIDR->setText(node.ipv6CIDR);
     ui->editDnsV4->setText(node.dnsV4);
     ui->editDnsV6->setText(node.dnsV6);
 
-    ui->checkBypassEnable->setChecked(node.bypassEnable);
-    ui->editBypassAddr->setText(node.bypassAddr);
-
+    // 高级
     ui->checkAllow0RTT->setChecked(node.allow0RTT);
     ui->checkEnableReconnect->setChecked(node.enableReconnect);
     ui->spinNumSessions->setValue(node.numSessions);
 
-    updateVisibility();
+    updateECHVisibility();
 }
 
 TunnelNode EditNodeDialog::getNode() const
 {
     TunnelNode n = m_node;
 
-    n.name        = ui->editName->text().trimmed();
-    n.serverAddr  = ui->editServerAddr->text().trimmed();
-    n.uri         = ui->editURI->text().trimmed();
-    n.authority   = ui->editAuthority->text().trimmed();
+    // 基本
+    n.name       = ui->editName->text().trimmed();
+    n.serverAddr = ui->editServerAddr->text().trimmed();
+    n.uri        = ui->editURI->text().trimmed();
+    n.authority  = ui->editAuthority->text().trimmed();
 
-    n.authMethod         = static_cast<TunnelNode::AuthMethod>(ui->comboAuthMethod->currentIndex());
-    n.bearerToken        = ui->editBearerToken->text().trimmed();
-    n.basicUser          = ui->editBasicUser->text().trimmed();
-    n.basicPassword      = ui->editBasicPassword->text();
-    n.customHeaderName   = ui->editCustomHeaderName->text().trimmed();
-    n.customHeaderValue  = ui->editCustomHeaderValue->text().trimmed();
+    // mTLS
+    n.clientCertFile = ui->editClientCertFile->text().trimmed();
+    n.clientKeyFile  = ui->editClientKeyFile->text().trimmed();
 
+    // TLS/ECH
     n.serverName         = ui->editServerName->text().trimmed();
     n.insecureSkipVerify = ui->checkInsecureSkipVerify->isChecked();
     n.enablePQC          = ui->checkEnablePQC->isChecked();
@@ -88,16 +87,13 @@ TunnelNode EditNodeDialog::getNode() const
     n.echDomain          = ui->editECHDomain->text().trimmed();
     n.echDohServer       = ui->editECHDohServer->text().trimmed();
 
-    n.tunName    = ui->editTunName->text().trimmed();
-    n.mtu        = ui->spinMTU->value();
-    n.ipv4CIDR   = ui->editIPv4CIDR->text().trimmed();
-    n.ipv6CIDR   = ui->editIPv6CIDR->text().trimmed();
-    n.dnsV4      = ui->editDnsV4->text().trimmed();
-    n.dnsV6      = ui->editDnsV6->text().trimmed();
+    // TUN
+    n.tunName = ui->editTunName->text().trimmed();
+    n.mtu     = ui->spinMTU->value();
+    n.dnsV4   = ui->editDnsV4->text().trimmed();
+    n.dnsV6   = ui->editDnsV6->text().trimmed();
 
-    n.bypassEnable = ui->checkBypassEnable->isChecked();
-    n.bypassAddr   = ui->editBypassAddr->text().trimmed();
-
+    // 高级
     n.allow0RTT       = ui->checkAllow0RTT->isChecked();
     n.enableReconnect = ui->checkEnableReconnect->isChecked();
     n.numSessions     = ui->spinNumSessions->value();
@@ -105,23 +101,37 @@ TunnelNode EditNodeDialog::getNode() const
     return n;
 }
 
-void EditNodeDialog::onAuthMethodChanged(int index)
+void EditNodeDialog::onECHToggled(bool /*checked*/)
 {
-    updateVisibility();
+    updateECHVisibility();
 }
 
-void EditNodeDialog::onECHToggled(bool checked)
+void EditNodeDialog::onBrowseCert()
 {
-    updateVisibility();
+    QString path = QFileDialog::getOpenFileName(
+        this,
+        tr("选择客户端证书"),
+        {},
+        tr("PEM 证书 (*.crt *.pem *.cer);;所有文件 (*)")
+    );
+    if (!path.isEmpty())
+        ui->editClientCertFile->setText(path);
 }
 
-void EditNodeDialog::updateVisibility()
+void EditNodeDialog::onBrowseKey()
 {
-    int authIdx = ui->comboAuthMethod->currentIndex();
-    ui->groupBearer->setVisible(authIdx == 0);
-    ui->groupBasic->setVisible(authIdx == 1);
-    ui->groupCustomHeader->setVisible(authIdx == 2);
+    QString path = QFileDialog::getOpenFileName(
+        this,
+        tr("选择客户端私钥"),
+        {},
+        tr("PEM 私钥 (*.key *.pem);;所有文件 (*)")
+    );
+    if (!path.isEmpty())
+        ui->editClientKeyFile->setText(path);
+}
 
+void EditNodeDialog::updateECHVisibility()
+{
     bool echOn = ui->checkEnableECH->isChecked();
     ui->editECHDomain->setEnabled(echOn);
     ui->editECHDohServer->setEnabled(echOn);

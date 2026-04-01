@@ -133,7 +133,7 @@ void MainWindow::onDeleteNode()
 
     TunnelNode node = m_nodeMgr->getNode(id);
     if (QMessageBox::question(this, tr("删除节点"),
-            tr("确定要删除节点 \"%1\" 吗？").arg(node.name))
+            tr("确定要删除节点「%1」吗？").arg(node.name))
         != QMessageBox::Yes)
         return;
 

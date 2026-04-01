@@ -19,11 +19,12 @@ public:
     TunnelNode getNode() const;
 
 private slots:
-    void onAuthMethodChanged(int index);
     void onECHToggled(bool checked);
+    void onBrowseCert();
+    void onBrowseKey();
 
 private:
-    void updateVisibility();
+    void updateECHVisibility();
 
     Ui::EditNodeDialog *ui;
     TunnelNode m_node;
