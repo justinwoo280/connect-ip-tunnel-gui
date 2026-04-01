@@ -39,12 +39,16 @@ struct TunnelNode {
     QString dnsV6      = "2606:4700:4700::1111";
 
     // ── HTTP3 ────────────────────────────────────────────────────
-    bool    enableDatagrams = true;
-    bool    allow0RTT       = false;
+    bool    enableDatagrams    = true;
+    bool    allow0RTT          = false;
+    int     maxIdleTimeoutSec  = 30;   // HTTP3 连接空闲超时（秒）
+    int     keepAlivePeriodSec = 10;   // HTTP3 Keep-alive 周期（秒）
 
     // ── ConnectIP 高级 ───────────────────────────────────────────
-    bool    enableReconnect   = true;
-    int     numSessions       = 1;    // 多 session 并行
+    bool    enableReconnect        = true;
+    int     numSessions            = 1;    // 多 session 并行
+    int     addressAssignTimeoutSec = 30;  // ADDRESS_ASSIGN 超时（秒）
+    int     maxReconnectDelaySec    = 30;  // 最大重连延迟（秒）
 
     // ── 测试结果（GUI 专用，不序列化到内核 config）────────────────
     int latency = 0; // ms，-1=失败，0=未测试
@@ -94,8 +98,10 @@ struct TunnelNode {
 
         // HTTP3
         QJsonObject http3;
-        http3["enable_datagrams"] = enableDatagrams;
-        http3["allow_0rtt"]       = allow0RTT;
+        http3["enable_datagrams"]  = enableDatagrams;
+        http3["allow_0rtt"]        = allow0RTT;
+        http3["max_idle_timeout"]  = QString("%1s").arg(maxIdleTimeoutSec);
+        http3["keep_alive_period"] = QString("%1s").arg(keepAlivePeriodSec);
 
         // ConnectIP — wait_for_address_assign 始终为 true
         QJsonObject connectip;
@@ -103,7 +109,9 @@ struct TunnelNode {
         connectip["uri"]                     = uri;
         connectip["authority"]               = auth;
         connectip["wait_for_address_assign"] = true;
+        connectip["address_assign_timeout"]  = QString("%1s").arg(addressAssignTimeoutSec);
         connectip["enable_reconnect"]        = enableReconnect;
+        connectip["max_reconnect_delay"]     = QString("%1s").arg(maxReconnectDelaySec);
         connectip["num_sessions"]            = numSessions;
 
         // ClientConfig
@@ -150,6 +158,10 @@ struct TunnelNode {
         o["allow0RTT"]         = allow0RTT;
         o["enableReconnect"]   = enableReconnect;
         o["numSessions"]       = numSessions;
+        o["maxIdleTimeoutSec"]  = maxIdleTimeoutSec;
+        o["keepAlivePeriodSec"] = keepAlivePeriodSec;
+        o["addressAssignTimeoutSec"] = addressAssignTimeoutSec;
+        o["maxReconnectDelaySec"]    = maxReconnectDelaySec;
         return o;
     }
 
@@ -180,6 +192,10 @@ struct TunnelNode {
         n.allow0RTT          = o["allow0RTT"].toBool(false);
         n.enableReconnect    = o["enableReconnect"].toBool(true);
         n.numSessions        = o["numSessions"].toInt(1);
+        n.maxIdleTimeoutSec  = o["maxIdleTimeoutSec"].toInt(30);
+        n.keepAlivePeriodSec = o["keepAlivePeriodSec"].toInt(10);
+        n.addressAssignTimeoutSec = o["addressAssignTimeoutSec"].toInt(30);
+        n.maxReconnectDelaySec    = o["maxReconnectDelaySec"].toInt(30);
         return n;
     }
 

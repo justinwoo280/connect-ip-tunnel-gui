@@ -36,19 +36,12 @@ jobs:
             qt_arch: win64_msvc2019_64
             core_suffix: windows-amd64.exe
 
-          - name: macOS ARM64 (Apple Silicon)
+          - name: macOS Universal
             os: macos-latest
             platform: darwin
-            arch: arm64
+            arch: universal
             qt_arch: clang_64
             core_suffix: darwin-arm64
-
-          - name: macOS x86_64
-            os: macos-13
-            platform: darwin
-            arch: amd64
-            qt_arch: clang_64
-            core_suffix: darwin-amd64
 
     steps:
       - name: Checkout GUI

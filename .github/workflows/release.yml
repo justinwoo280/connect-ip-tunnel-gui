@@ -51,23 +51,13 @@ jobs:
             gui_artifact: connect-ip-tunnel-gui.exe
             pkg_ext: zip
 
-          - name: macOS ARM64 (Apple Silicon)
+          - name: macOS Universal
             os: macos-latest
             platform: darwin
-            arch: arm64
+            arch: universal
             qt_arch: clang_64
             core_goos: darwin
             core_goarch: arm64
-            gui_artifact: connect-ip-tunnel-gui
-            pkg_ext: tar.gz
-
-          - name: macOS x86_64
-            os: macos-13
-            platform: darwin
-            arch: amd64
-            qt_arch: clang_64
-            core_goos: darwin
-            core_goarch: amd64
             gui_artifact: connect-ip-tunnel-gui
             pkg_ext: tar.gz
 

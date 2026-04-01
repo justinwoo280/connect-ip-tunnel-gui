@@ -59,6 +59,12 @@ void EditNodeDialog::setNode(const TunnelNode &node)
     ui->checkAllow0RTT->setChecked(node.allow0RTT);
     ui->checkEnableReconnect->setChecked(node.enableReconnect);
     ui->spinNumSessions->setValue(node.numSessions);
+    ui->checkEnableSessionCache->setChecked(node.enableSessionCache);
+    ui->spinSessionCacheSize->setValue(node.sessionCacheSize);
+    ui->spinMaxIdleTimeout->setValue(node.maxIdleTimeoutSec);
+    ui->spinKeepAlivePeriod->setValue(node.keepAlivePeriodSec);
+    ui->spinAddressAssignTimeout->setValue(node.addressAssignTimeoutSec);
+    ui->spinMaxReconnectDelay->setValue(node.maxReconnectDelaySec);
 
     updateECHVisibility();
 }
@@ -97,6 +103,12 @@ TunnelNode EditNodeDialog::getNode() const
     n.allow0RTT       = ui->checkAllow0RTT->isChecked();
     n.enableReconnect = ui->checkEnableReconnect->isChecked();
     n.numSessions     = ui->spinNumSessions->value();
+    n.enableSessionCache = ui->checkEnableSessionCache->isChecked();
+    n.sessionCacheSize   = ui->spinSessionCacheSize->value();
+    n.maxIdleTimeoutSec  = ui->spinMaxIdleTimeout->value();
+    n.keepAlivePeriodSec = ui->spinKeepAlivePeriod->value();
+    n.addressAssignTimeoutSec = ui->spinAddressAssignTimeout->value();
+    n.maxReconnectDelaySec    = ui->spinMaxReconnectDelay->value();
 
     return n;
 }
