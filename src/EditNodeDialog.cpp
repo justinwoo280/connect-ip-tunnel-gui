@@ -2,6 +2,7 @@
 #include "ui_EditNodeDialog.h"
 
 #include <QFileDialog>
+#include <QLabel>
 
 EditNodeDialog::EditNodeDialog(QWidget *parent)
     : QDialog(parent)
@@ -196,7 +197,12 @@ void EditNodeDialog::updateAddressAssignVisibility()
     // 静态 IP 字段仅在不等待服务端分配时可编辑
     ui->editIPv4CIDR->setEnabled(!waitMode);
     ui->editIPv6CIDR->setEnabled(!waitMode);
-    ui->labelStaticIPHint->setVisible(!waitMode);
-    ui->labelIPv4CIDR->setEnabled(!waitMode);
-    ui->labelIPv6CIDR->setEnabled(!waitMode);
+    // labelStaticIPHint / labelIPv4CIDR / labelIPv6CIDR 在 .ui 中
+    // 可能未被 uic 生成为成员（QFormLayout 中的 QLabel 需通过 findChild 访问）
+    if (auto *hint = findChild<QLabel*>(QStringLiteral("labelStaticIPHint")))
+        hint->setVisible(!waitMode);
+    if (auto *lv4 = findChild<QLabel*>(QStringLiteral("labelIPv4CIDR")))
+        lv4->setEnabled(!waitMode);
+    if (auto *lv6 = findChild<QLabel*>(QStringLiteral("labelIPv6CIDR")))
+        lv6->setEnabled(!waitMode);
 }
