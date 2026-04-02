@@ -12,12 +12,15 @@ EditNodeDialog::EditNodeDialog(QWidget *parent)
 
     connect(ui->checkEnableECH, &QCheckBox::toggled,
             this, &EditNodeDialog::onECHToggled);
+    connect(ui->checkWaitForAddressAssign, &QCheckBox::toggled,
+            this, &EditNodeDialog::onWaitForAddressAssignToggled);
     connect(ui->btnBrowseCert, &QPushButton::clicked,
             this, &EditNodeDialog::onBrowseCert);
     connect(ui->btnBrowseKey, &QPushButton::clicked,
             this, &EditNodeDialog::onBrowseKey);
 
     updateECHVisibility();
+    updateAddressAssignVisibility();
 }
 
 EditNodeDialog::~EditNodeDialog()
@@ -54,6 +57,9 @@ void EditNodeDialog::setNode(const TunnelNode &node)
     ui->spinMTU->setValue(node.mtu);
     ui->editDnsV4->setText(node.dnsV4);
     ui->editDnsV6->setText(node.dnsV6);
+    ui->checkWaitForAddressAssign->setChecked(node.waitForAddressAssign);
+    ui->editIPv4CIDR->setText(node.ipv4CIDR);
+    ui->editIPv6CIDR->setText(node.ipv6CIDR);
 
     // 高级
     ui->checkAllow0RTT->setChecked(node.allow0RTT);
@@ -66,7 +72,21 @@ void EditNodeDialog::setNode(const TunnelNode &node)
     ui->spinAddressAssignTimeout->setValue(node.addressAssignTimeoutSec);
     ui->spinMaxReconnectDelay->setValue(node.maxReconnectDelaySec);
 
+    // Bypass
+    ui->checkEnableBypass->setChecked(node.enableBypass);
+
+    // HTTP3 窗口调优
+    ui->checkDisablePathMTUProbe->setChecked(node.disablePathMTUProbe);
+    ui->spinInitialStreamWindow->setValue(static_cast<int>(node.initialStreamWindow));
+    ui->spinMaxStreamWindow->setValue(static_cast<int>(node.maxStreamWindow));
+    ui->spinInitialConnWindow->setValue(static_cast<int>(node.initialConnWindow));
+    ui->spinMaxConnWindow->setValue(static_cast<int>(node.maxConnWindow));
+
+    // 调试
+    ui->editKeyLogPath->setText(node.keyLogPath);
+
     updateECHVisibility();
+    updateAddressAssignVisibility();
 }
 
 TunnelNode EditNodeDialog::getNode() const
@@ -98,6 +118,9 @@ TunnelNode EditNodeDialog::getNode() const
     n.mtu     = ui->spinMTU->value();
     n.dnsV4   = ui->editDnsV4->text().trimmed();
     n.dnsV6   = ui->editDnsV6->text().trimmed();
+    n.waitForAddressAssign = ui->checkWaitForAddressAssign->isChecked();
+    n.ipv4CIDR = ui->editIPv4CIDR->text().trimmed();
+    n.ipv6CIDR = ui->editIPv6CIDR->text().trimmed();
 
     // 高级
     n.allow0RTT       = ui->checkAllow0RTT->isChecked();
@@ -110,12 +133,30 @@ TunnelNode EditNodeDialog::getNode() const
     n.addressAssignTimeoutSec = ui->spinAddressAssignTimeout->value();
     n.maxReconnectDelaySec    = ui->spinMaxReconnectDelay->value();
 
+    // Bypass
+    n.enableBypass = ui->checkEnableBypass->isChecked();
+
+    // HTTP3 窗口调优
+    n.disablePathMTUProbe = ui->checkDisablePathMTUProbe->isChecked();
+    n.initialStreamWindow = ui->spinInitialStreamWindow->value();
+    n.maxStreamWindow     = ui->spinMaxStreamWindow->value();
+    n.initialConnWindow   = ui->spinInitialConnWindow->value();
+    n.maxConnWindow       = ui->spinMaxConnWindow->value();
+
+    // 调试
+    n.keyLogPath = ui->editKeyLogPath->text().trimmed();
+
     return n;
 }
 
 void EditNodeDialog::onECHToggled(bool /*checked*/)
 {
     updateECHVisibility();
+}
+
+void EditNodeDialog::onWaitForAddressAssignToggled(bool /*checked*/)
+{
+    updateAddressAssignVisibility();
 }
 
 void EditNodeDialog::onBrowseCert()
@@ -147,4 +188,15 @@ void EditNodeDialog::updateECHVisibility()
     bool echOn = ui->checkEnableECH->isChecked();
     ui->editECHDomain->setEnabled(echOn);
     ui->editECHDohServer->setEnabled(echOn);
+}
+
+void EditNodeDialog::updateAddressAssignVisibility()
+{
+    bool waitMode = ui->checkWaitForAddressAssign->isChecked();
+    // 静态 IP 字段仅在不等待服务端分配时可编辑
+    ui->editIPv4CIDR->setEnabled(!waitMode);
+    ui->editIPv6CIDR->setEnabled(!waitMode);
+    ui->labelStaticIPHint->setVisible(!waitMode);
+    ui->labelIPv4CIDR->setEnabled(!waitMode);
+    ui->labelIPv6CIDR->setEnabled(!waitMode);
 }

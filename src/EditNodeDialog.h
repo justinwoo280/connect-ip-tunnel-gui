@@ -20,11 +20,13 @@ public:
 
 private slots:
     void onECHToggled(bool checked);
+    void onWaitForAddressAssignToggled(bool checked);
     void onBrowseCert();
     void onBrowseKey();
 
 private:
     void updateECHVisibility();
+    void updateAddressAssignVisibility();
 
     Ui::EditNodeDialog *ui;
     TunnelNode m_node;

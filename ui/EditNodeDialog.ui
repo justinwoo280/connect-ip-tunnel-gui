@@ -84,14 +84,6 @@
      <widget class="QWidget" name="tabTUN">
       <attribute name="title"><string>TUN</string></attribute>
       <layout class="QFormLayout">
-       <item>
-        <widget class="QLabel">
-         <property name="text"><string>提示：IP 地址由服务端自动分配，无需手动配置。</string></property>
-         <property name="styleSheet"><string>color: gray; font-style: italic;</string></property>
-         <property name="wordWrap"><bool>true</bool></property>
-        </widget>
-        <widget class="QLabel"><property name="text"><string></string></property></widget>
-       </item>
        <item><widget class="QLabel"><property name="text"><string>TUN 设备名</string></property></widget>
             <widget class="QLineEdit" name="editTunName"><property name="placeholderText"><string>tun0</string></property></widget></item>
        <item><widget class="QLabel"><property name="text"><string>MTU</string></property></widget>
@@ -104,6 +96,32 @@
             <widget class="QLineEdit" name="editDnsV4"><property name="placeholderText"><string>1.1.1.1</string></property></widget></item>
        <item><widget class="QLabel"><property name="text"><string>DNS IPv6</string></property></widget>
             <widget class="QLineEdit" name="editDnsV6"><property name="placeholderText"><string>2606:4700:4700::1111</string></property></widget></item>
+
+       <!-- 地址分配模式 -->
+       <item><widget class="QLabel"><property name="text"><string>等待服务端分配 IP</string></property></widget>
+            <widget class="QCheckBox" name="checkWaitForAddressAssign">
+             <property name="checked"><bool>true</bool></property>
+             <property name="toolTip"><string>勾选：等待服务端通过 ADDRESS_ASSIGN 分配 IP（默认）
+取消：手动填写静态 IP（仅当服务端未开启地址分配时使用）</string></property>
+            </widget></item>
+       <item>
+        <widget class="QLabel" name="labelStaticIPHint">
+         <property name="text"><string>⚠ 静态 IP 模式：仅当服务端未开启地址分配功能时使用</string></property>
+         <property name="styleSheet"><string>color: #cc6600; font-style: italic;</string></property>
+         <property name="wordWrap"><bool>true</bool></property>
+        </widget>
+        <widget class="QLabel"><property name="text"><string></string></property></widget>
+       </item>
+       <item><widget class="QLabel" name="labelIPv4CIDR"><property name="text"><string>IPv4 CIDR</string></property></widget>
+            <widget class="QLineEdit" name="editIPv4CIDR">
+             <property name="placeholderText"><string>10.0.0.2/24</string></property>
+             <property name="enabled"><bool>false</bool></property>
+            </widget></item>
+       <item><widget class="QLabel" name="labelIPv6CIDR"><property name="text"><string>IPv6 CIDR</string></property></widget>
+            <widget class="QLineEdit" name="editIPv6CIDR">
+             <property name="placeholderText"><string>fd00::2/64</string></property>
+             <property name="enabled"><bool>false</bool></property>
+            </widget></item>
       </layout>
      </widget>
 
@@ -152,6 +170,51 @@
              <property name="minimum"><number>1</number></property>
              <property name="maximum"><number>300</number></property>
              <property name="value"><number>30</number></property>
+            </widget></item>
+
+       <!-- Bypass -->
+       <item><widget class="QLabel"><property name="text"><string>启用路由绕行 (Bypass)</string></property></widget>
+            <widget class="QCheckBox" name="checkEnableBypass">
+             <property name="checked"><bool>true</bool></property>
+             <property name="toolTip"><string>防止隧道流量回环，通常应保持开启</string></property>
+            </widget></item>
+
+       <!-- HTTP3 窗口调优 -->
+       <item><widget class="QLabel"><property name="text"><string>禁用路径 MTU 探测</string></property></widget>
+            <widget class="QCheckBox" name="checkDisablePathMTUProbe"/></item>
+       <item><widget class="QLabel"><property name="text"><string>初始流窗口 (bytes)</string></property></widget>
+            <widget class="QSpinBox" name="spinInitialStreamWindow">
+             <property name="minimum"><number>65536</number></property>
+             <property name="maximum"><number>2147483647</number></property>
+             <property name="value"><number>16777216</number></property>
+             <property name="singleStep"><number>1048576</number></property>
+            </widget></item>
+       <item><widget class="QLabel"><property name="text"><string>最大流窗口 (bytes)</string></property></widget>
+            <widget class="QSpinBox" name="spinMaxStreamWindow">
+             <property name="minimum"><number>65536</number></property>
+             <property name="maximum"><number>2147483647</number></property>
+             <property name="value"><number>67108864</number></property>
+             <property name="singleStep"><number>1048576</number></property>
+            </widget></item>
+       <item><widget class="QLabel"><property name="text"><string>初始连接窗口 (bytes)</string></property></widget>
+            <widget class="QSpinBox" name="spinInitialConnWindow">
+             <property name="minimum"><number>65536</number></property>
+             <property name="maximum"><number>2147483647</number></property>
+             <property name="value"><number>33554432</number></property>
+             <property name="singleStep"><number>1048576</number></property>
+            </widget></item>
+       <item><widget class="QLabel"><property name="text"><string>最大连接窗口 (bytes)</string></property></widget>
+            <widget class="QSpinBox" name="spinMaxConnWindow">
+             <property name="minimum"><number>65536</number></property>
+             <property name="maximum"><number>2147483647</number></property>
+             <property name="value"><number>134217728</number></property>
+             <property name="singleStep"><number>1048576</number></property>
+            </widget></item>
+
+       <!-- 调试 -->
+       <item><widget class="QLabel"><property name="text"><string>TLS Key Log 路径</string></property></widget>
+            <widget class="QLineEdit" name="editKeyLogPath">
+             <property name="placeholderText"><string>留空不启用（Wireshark 调试用）</string></property>
             </widget></item>
       </layout>
      </widget>
