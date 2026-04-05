@@ -3,6 +3,7 @@
 #include <QString>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QUrl>
 #include <QUuid>
 
 // TunnelNode 对应内核 ClientConfig 的完整结构
@@ -12,8 +13,9 @@ struct TunnelNode {
 
     // ── connect_ip ───────────────────────────────────────────────
     QString serverAddr;               // host:port，例如 proxy.example.com:443
-    QString uri           = "/.well-known/masque/ip";
-    QString authority;                // 留空则与 serverAddr host 相同
+    QString uri;                      // 完整 URL，例如 https://proxy.example.com/.well-known/masque/ip
+    QString authority;                // HTTP :authority header，必须与服务端 uri_template 的 host 一致
+                                      // 转发场景：serverAddr 是中继地址，authority 是真正代理的域名
 
     // ── TLS ──────────────────────────────────────────────────────
     QString serverName;               // SNI，留空则与 serverAddr host 相同
@@ -76,15 +78,28 @@ struct TunnelNode {
     // 生成内核 config.json（ClientConfig）
     // ────────────────────────────────────────────────────────────
     QJsonObject toClientConfig(const QString &adminListen = "127.0.0.1:0") const {
-        // 解析 host
+        // 解析 serverAddr 的 host 部分（用于 SNI/ECH fallback）
         QString host = serverAddr;
         int colonPos = serverAddr.lastIndexOf(':');
         if (colonPos > 0)
             host = serverAddr.left(colonPos);
 
-        QString sni  = serverName.isEmpty()  ? host : serverName;
-        QString auth = authority.isEmpty()   ? host : authority;
-        QString ech  = echDomain.isEmpty()   ? sni  : echDomain;
+        QString sni = serverName.isEmpty() ? host : serverName;
+        QString ech = echDomain.isEmpty()  ? sni  : echDomain;
+
+        // authority：HTTP :authority header，必须与服务端 uri_template 的 host 完全一致。
+        // 推断优先级：用户明确填写 > 从完整 URI 里提取 host > fallback 到 serverAddr host（直连场景）
+        // 注意：转发场景下 serverAddr 是中继地址，不能用它做 authority，
+        //       应由用户在 authority 字段或完整 URI 里明确写出真正代理的域名。
+        QString auth = authority;
+        if (auth.isEmpty() && !uri.isEmpty()) {
+            // uri 是完整 URL 时提取 host（相对路径不含 host，跳过）
+            QUrl parsedUri(uri);
+            if (parsedUri.isValid() && !parsedUri.host().isEmpty())
+                auth = parsedUri.host();
+        }
+        if (auth.isEmpty())
+            auth = host; // 直连场景兜底：authority 同 serverAddr host
 
         // TUN
         QJsonObject tun;
@@ -147,8 +162,8 @@ struct TunnelNode {
         // ConnectIP
         QJsonObject connectip;
         connectip["addr"]                    = serverAddr;
-        connectip["uri"]                     = uri;
-        connectip["authority"]               = auth;
+        connectip["uri"]                     = uri;  // 完整 URL，内核直接使用
+        connectip["authority"]               = auth; // 必须与服务端 uri_template 的 host 一致
         connectip["wait_for_address_assign"] = waitForAddressAssign;
         connectip["address_assign_timeout"]  = QString("%1s").arg(addressAssignTimeoutSec);
         connectip["enable_reconnect"]        = enableReconnect;
@@ -225,7 +240,7 @@ struct TunnelNode {
         n.id                 = o["id"].toInt(-1);
         n.name               = o["name"].toString();
         n.serverAddr         = o["serverAddr"].toString();
-        n.uri                = o["uri"].toString("/.well-known/masque/ip");
+        n.uri                = o["uri"].toString(); // 完整 URL，留空需用户填写
         n.authority          = o["authority"].toString();
         n.serverName         = o["serverName"].toString();
         n.insecureSkipVerify = o["insecureSkipVerify"].toBool(false);
@@ -270,8 +285,8 @@ struct TunnelNode {
 
     // ── 显示辅助 ─────────────────────────────────────────────────
     bool isValid() const {
-        // 服务端地址必填，mTLS 证书可选（服务端可配置为不强制 mTLS）
-        return !serverAddr.isEmpty();
+        // serverAddr 必填；uri 必填（相对路径或完整 URL 均可）
+        return !serverAddr.isEmpty() && !uri.isEmpty();
     }
 
     QString displayLatency() const {

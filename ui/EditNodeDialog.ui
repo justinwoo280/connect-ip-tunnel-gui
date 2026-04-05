@@ -33,14 +33,23 @@
          </item>
          <item row="2" column="1">
           <widget class="QLineEdit" name="editURI">
-           <property name="placeholderText"><string>/.well-known/masque/ip</string></property>
+           <property name="placeholderText"><string>https://proxy.example.com/.well-known/masque/ip</string></property>
+           <property name="toolTip"><string>支持两种写法：
+• 完整 URL：https://proxy.example.com/.well-known/masque/ip（推荐，与服务端 uri_template 完全一致）
+• 相对路径：/.well-known/masque/ip（自动补全为 https://&lt;authority&gt;/...）
+转发场景：请使用完整 URL，域名填真正代理的域名。</string></property>
           </widget>
          </item>
          <item row="3" column="0">
-          <widget class="QLabel"><property name="text"><string>Authority（留空同 host）</string></property></widget>
+          <widget class="QLabel"><property name="text"><string>Authority（连接主机名）</string></property></widget>
          </item>
          <item row="3" column="1">
-          <widget class="QLineEdit" name="editAuthority"/>
+          <widget class="QLineEdit" name="editAuthority">
+           <property name="placeholderText"><string>留空则自动从 URI 提取</string></property>
+           <property name="toolTip"><string>HTTP :authority header，必须与服务端 uri_template 的域名完全一致。
+• 直连：留空即可（自动从 URI 提取域名）
+• 转发：服务端地址填中继地址，此处填真正代理的域名</string></property>
+          </widget>
          </item>
         </layout>
        </item>
