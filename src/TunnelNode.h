@@ -24,6 +24,7 @@ struct TunnelNode {
     bool    enableECH          = true;
     QString echDomain;                // 留空则与 serverName 相同
     QString echDohServer       = "https://cloudflare-dns.com/dns-query";
+    QString echConfigListB64;         // 静态 ECH 配置（base64，留空则动态 DoH 查询）
     bool    enableSessionCache = true;
     int     sessionCacheSize   = 128;
 
@@ -52,6 +53,9 @@ struct TunnelNode {
     qint64  maxStreamWindow       = 67108864;   // 64 MB
     qint64  initialConnWindow     = 33554432;   // 32 MB
     qint64  maxConnWindow         = 134217728;  // 128 MB
+    bool    disableCompression    = false; // 禁用 HTTP3 压缩
+    int     tlsHandshakeTimeoutSec = 0;   // TLS 握手超时（秒，0=不限）
+    int     maxResponseHeaderSec  = 0;    // 最大响应头等待（秒，0=不限）
 
     // ── ConnectIP 高级 ───────────────────────────────────────────
     bool    enableReconnect        = true;
@@ -108,8 +112,14 @@ struct TunnelNode {
         tls["use_mozilla_ca"]       = useMozillaCA;
         tls["enable_ech"]           = enableECH;
         if (enableECH) {
-            tls["ech_domain"]     = ech;
-            tls["ech_doh_server"] = echDohServer;
+            if (!echConfigListB64.isEmpty()) {
+                // 静态 ECH：直接传 base64 字符串，内核自行解码
+                tls["ech_config_list"] = echConfigListB64;
+            } else {
+                // 动态 ECH：通过 DoH 查询
+                tls["ech_domain"]     = ech;
+                tls["ech_doh_server"] = echDohServer;
+            }
         }
         tls["enable_session_cache"] = enableSessionCache;
         tls["session_cache_size"]   = sessionCacheSize;
@@ -128,6 +138,11 @@ struct TunnelNode {
         http3["max_stream_window"]      = maxStreamWindow;
         http3["initial_conn_window"]    = initialConnWindow;
         http3["max_conn_window"]        = maxConnWindow;
+        http3["disable_compression"]    = disableCompression;
+        if (tlsHandshakeTimeoutSec > 0)
+            http3["tls_handshake_timeout"] = QString("%1s").arg(tlsHandshakeTimeoutSec);
+        if (maxResponseHeaderSec > 0)
+            http3["max_response_header_sec"] = maxResponseHeaderSec;
 
         // ConnectIP
         QJsonObject connectip;
@@ -172,6 +187,7 @@ struct TunnelNode {
         o["enableECH"]         = enableECH;
         o["echDomain"]         = echDomain;
         o["echDohServer"]      = echDohServer;
+        o["echConfigListB64"]  = echConfigListB64;
         o["enableSessionCache"] = enableSessionCache;
         o["sessionCacheSize"]  = sessionCacheSize;
         o["clientCertFile"]    = clientCertFile;
@@ -190,6 +206,9 @@ struct TunnelNode {
         o["maxStreamWindow"]     = maxStreamWindow;
         o["initialConnWindow"]   = initialConnWindow;
         o["maxConnWindow"]       = maxConnWindow;
+        o["disableCompression"]      = disableCompression;
+        o["tlsHandshakeTimeoutSec"]  = tlsHandshakeTimeoutSec;
+        o["maxResponseHeaderSec"]    = maxResponseHeaderSec;
         o["enableReconnect"]   = enableReconnect;
         o["numSessions"]       = numSessions;
         o["maxIdleTimeoutSec"]  = maxIdleTimeoutSec;
@@ -216,6 +235,7 @@ struct TunnelNode {
         n.enableECH          = o["enableECH"].toBool(true);
         n.echDomain          = o["echDomain"].toString();
         n.echDohServer       = o["echDohServer"].toString("https://cloudflare-dns.com/dns-query");
+        n.echConfigListB64   = o["echConfigListB64"].toString();
         n.enableSessionCache = o["enableSessionCache"].toBool(true);
         n.sessionCacheSize   = o["sessionCacheSize"].toInt(128);
         n.clientCertFile     = o["clientCertFile"].toString();
@@ -234,6 +254,9 @@ struct TunnelNode {
         n.maxStreamWindow     = o["maxStreamWindow"].toDouble(67108864);
         n.initialConnWindow   = o["initialConnWindow"].toDouble(33554432);
         n.maxConnWindow       = o["maxConnWindow"].toDouble(134217728);
+        n.disableCompression     = o["disableCompression"].toBool(false);
+        n.tlsHandshakeTimeoutSec = o["tlsHandshakeTimeoutSec"].toInt(0);
+        n.maxResponseHeaderSec   = o["maxResponseHeaderSec"].toInt(0);
         n.enableReconnect    = o["enableReconnect"].toBool(true);
         n.numSessions        = o["numSessions"].toInt(1);
         n.maxIdleTimeoutSec  = o["maxIdleTimeoutSec"].toInt(30);

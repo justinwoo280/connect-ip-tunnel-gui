@@ -52,6 +52,7 @@ void EditNodeDialog::setNode(const TunnelNode &node)
     ui->checkEnableECH->setChecked(node.enableECH);
     ui->editECHDomain->setText(node.echDomain);
     ui->editECHDohServer->setText(node.echDohServer);
+    ui->editECHConfigListB64->setText(node.echConfigListB64);
 
     // TUN
     ui->editTunName->setText(node.tunName);
@@ -82,6 +83,9 @@ void EditNodeDialog::setNode(const TunnelNode &node)
     ui->spinMaxStreamWindow->setValue(static_cast<int>(node.maxStreamWindow));
     ui->spinInitialConnWindow->setValue(static_cast<int>(node.initialConnWindow));
     ui->spinMaxConnWindow->setValue(static_cast<int>(node.maxConnWindow));
+    ui->checkDisableCompression->setChecked(node.disableCompression);
+    ui->spinTLSHandshakeTimeout->setValue(node.tlsHandshakeTimeoutSec);
+    ui->spinMaxResponseHeaderSec->setValue(node.maxResponseHeaderSec);
 
     // 调试
     ui->editKeyLogPath->setText(node.keyLogPath);
@@ -113,6 +117,7 @@ TunnelNode EditNodeDialog::getNode() const
     n.enableECH          = ui->checkEnableECH->isChecked();
     n.echDomain          = ui->editECHDomain->text().trimmed();
     n.echDohServer       = ui->editECHDohServer->text().trimmed();
+    n.echConfigListB64   = ui->editECHConfigListB64->text().trimmed();
 
     // TUN
     n.tunName = ui->editTunName->text().trimmed();
@@ -138,11 +143,14 @@ TunnelNode EditNodeDialog::getNode() const
     n.enableBypass = ui->checkEnableBypass->isChecked();
 
     // HTTP3 窗口调优
-    n.disablePathMTUProbe = ui->checkDisablePathMTUProbe->isChecked();
-    n.initialStreamWindow = ui->spinInitialStreamWindow->value();
-    n.maxStreamWindow     = ui->spinMaxStreamWindow->value();
-    n.initialConnWindow   = ui->spinInitialConnWindow->value();
-    n.maxConnWindow       = ui->spinMaxConnWindow->value();
+    n.disablePathMTUProbe    = ui->checkDisablePathMTUProbe->isChecked();
+    n.initialStreamWindow    = ui->spinInitialStreamWindow->value();
+    n.maxStreamWindow        = ui->spinMaxStreamWindow->value();
+    n.initialConnWindow      = ui->spinInitialConnWindow->value();
+    n.maxConnWindow          = ui->spinMaxConnWindow->value();
+    n.disableCompression     = ui->checkDisableCompression->isChecked();
+    n.tlsHandshakeTimeoutSec = ui->spinTLSHandshakeTimeout->value();
+    n.maxResponseHeaderSec   = ui->spinMaxResponseHeaderSec->value();
 
     // 调试
     n.keyLogPath = ui->editKeyLogPath->text().trimmed();
