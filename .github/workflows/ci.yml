@@ -89,6 +89,9 @@ jobs:
           cache: true
 
       # ── 编译 GUI ─────────────────────────────────────────────────
+      - name: 清理旧的 CMake 缓存
+        run: rm -rf build CMakeCache.txt CMakeFiles
+
       - name: 配置 CMake（Linux）
         if: matrix.platform == 'linux'
         run: |
