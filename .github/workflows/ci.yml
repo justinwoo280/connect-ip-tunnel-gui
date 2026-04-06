@@ -112,13 +112,18 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          GUI_BIN=""
-          for p in build/Release/connect-ip-tunnel-gui build/connect-ip-tunnel-gui; do
-            [ -f "$p" ] && GUI_BIN="$p" && break
+          # CMake MACOSX_BUNDLE 产物是 .app bundle
+          APP_BUNDLE=""
+          for p in build/Release/connect-ip-tunnel-gui.app build/connect-ip-tunnel-gui.app; do
+            [ -d "$p" ] && APP_BUNDLE="$p" && break
           done
-          cp "${GUI_BIN}" dist/connect-ip-tunnel-gui
-          "${QT_ROOT_DIR}/bin/macdeployqt" "dist/connect-ip-tunnel-gui" -verbose=1 || true
-          cp dist/connect-ip-tunnel dist/ 2>/dev/null || true
+          cp -R "${APP_BUNDLE}" dist/connect-ip-tunnel-gui.app
+          # 将内核放入 .app/Contents/MacOS/，与 GUI 同目录，findCoreExecutable() 可直接找到
+          cp dist/connect-ip-tunnel \
+             dist/connect-ip-tunnel-gui.app/Contents/MacOS/connect-ip-tunnel
+          # macdeployqt 处理 .app bundle，自动收集 Qt framework
+          "${QT_ROOT_DIR}/bin/macdeployqt" \
+            dist/connect-ip-tunnel-gui.app -verbose=1 || true
 
       - name: 收集产物（Linux x86_64，AppImage）
         if: matrix.platform == 'linux' && matrix.arch == 'amd64'
@@ -133,7 +138,8 @@ jobs:
           cp dist/connect-ip-tunnel AppDir/usr/bin/ 2>/dev/null || true
           printf '[Desktop Entry]\nName=Connect-IP Tunnel\nExec=connect-ip-tunnel-gui\nIcon=connect-ip-tunnel-gui\nType=Application\nCategories=Network;\n' \
             > AppDir/usr/share/applications/connect-ip-tunnel-gui.desktop
-          touch AppDir/usr/share/icons/hicolor/256x256/apps/connect-ip-tunnel-gui.png
+          # 使用真实的 256x256 图标
+          cp resources/app_256.png AppDir/usr/share/icons/hicolor/256x256/apps/connect-ip-tunnel-gui.png
           QMAKE=$(command -v qmake6 2>/dev/null || command -v qmake 2>/dev/null || echo "")
           wget -q -O linuxdeployqt \
             https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
@@ -160,6 +166,15 @@ jobs:
           done
           cp dist/connect-ip-tunnel dist/ 2>/dev/null || true
 
+      - name: 下载 wintun.dll（Windows）
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          # wintun 是 Windows TUN 驱动，内核在 Windows 上启动 TUN 设备时必需
+          curl -sSL https://www.wintun.net/builds/wintun-0.14.1.zip -o wintun.zip
+          7z e wintun.zip "wintun/bin/amd64/wintun.dll" -o dist/ -y
+          echo "✓ wintun.dll: $(ls -lh dist/wintun.dll)"
+
       - name: 收集产物（Windows）
         if: matrix.platform == 'windows'
         shell: bash
@@ -174,6 +189,8 @@ jobs:
             --no-system-d3d-compiler \
             --no-opengl-sw \
             dist/connect-ip-tunnel-gui.exe
+          # wintun.dll 已在上一步下载到 dist/，此处确认存在
+          ls dist/wintun.dll
 
       - name: 上传产物（供检查）
         uses: actions/upload-artifact@v4

@@ -75,7 +75,8 @@ private:
     StatsPoller  *m_poller    = nullptr;
     SystemTray   *m_tray      = nullptr;
 
-    int  m_activeNodeId = -1;  // 当前连接的节点 ID
-    bool m_isConnected  = false;
-    bool m_forceQuit    = false;
+    int  m_activeNodeId  = -1;   // 当前连接的节点 ID
+    bool m_isConnected   = false;
+    bool m_forceQuit     = false;
+    bool m_trayMsgShown  = false; // 是否已经显示过"最小化到托盘"提示
 };

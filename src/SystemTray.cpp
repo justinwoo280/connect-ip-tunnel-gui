@@ -6,6 +6,7 @@
 SystemTray::SystemTray(MainWindow *window, QObject *parent)
     : QObject(parent)
 {
+    // 直接使用 main.cpp 中设置好的多尺寸应用图标
     m_tray = new QSystemTrayIcon(QApplication::windowIcon(), this);
 
     m_menu = new QMenu();
@@ -52,4 +53,10 @@ void SystemTray::onActivated(QSystemTrayIcon::ActivationReason reason)
     if (reason == QSystemTrayIcon::DoubleClick ||
         reason == QSystemTrayIcon::Trigger)
         emit showRequested();
+}
+
+void SystemTray::showTrayMessage(const QString &title, const QString &message, int msecs)
+{
+    if (QSystemTrayIcon::supportsMessages())
+        m_tray->showMessage(title, message, QSystemTrayIcon::Information, msecs);
 }

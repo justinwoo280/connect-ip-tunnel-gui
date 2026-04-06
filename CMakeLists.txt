@@ -42,11 +42,30 @@ set(RESOURCES
 
 # 可执行文件
 if(WIN32)
+    # Windows：附加 RC 文件以嵌入 .ico 图标到 EXE
     add_executable(${PROJECT_NAME} WIN32
         ${SOURCES}
         ${HEADERS}
         ${UI_FILES}
         ${RESOURCES}
+        resources/app.rc
+    )
+elseif(APPLE)
+    # macOS：将 .icns 作为 bundle 资源
+    set(MACOSX_ICON ${CMAKE_CURRENT_SOURCE_DIR}/resources/app.icns)
+    set_source_files_properties(${MACOSX_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    add_executable(${PROJECT_NAME} MACOSX_BUNDLE
+        ${SOURCES}
+        ${HEADERS}
+        ${UI_FILES}
+        ${RESOURCES}
+        ${MACOSX_ICON}
+    )
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE app.icns
+        MACOSX_BUNDLE_BUNDLE_NAME "Connect-IP Tunnel"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
     )
 else()
     add_executable(${PROJECT_NAME}

@@ -16,6 +16,7 @@ public:
     ~SystemTray();
 
     void setStatus(bool connected, const QString &tip = {});
+    void showTrayMessage(const QString &title, const QString &message, int msecs = 3000);
 
 signals:
     void showRequested();

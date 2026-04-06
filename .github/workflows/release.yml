@@ -145,19 +145,21 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          # 找到 GUI 二进制
-          GUI_BIN=""
-          for p in build/Release/${{ matrix.gui_artifact }} build/${{ matrix.gui_artifact }}; do
-            [ -f "$p" ] && GUI_BIN="$p" && break
+          # CMake MACOSX_BUNDLE 产物是 .app bundle
+          APP_BUNDLE=""
+          for p in build/Release/connect-ip-tunnel-gui.app build/connect-ip-tunnel-gui.app; do
+            [ -d "$p" ] && APP_BUNDLE="$p" && break
           done
-          # 用 macdeployqt 打包成 .app bundle（直接在原位操作）
-          cp "${GUI_BIN}" dist/${{ matrix.gui_artifact }}
-          "${QT_ROOT_DIR}/bin/macdeployqt" "dist/${{ matrix.gui_artifact }}" -verbose=1 || true
-          # 复制内核
-          cp dist/connect-ip-tunnel dist/ 2>/dev/null || true
-          # 打包
+          cp -R "${APP_BUNDLE}" dist/connect-ip-tunnel-gui.app
+          # 将内核放入 .app/Contents/MacOS/，与 GUI 同目录，findCoreExecutable() 可直接找到
+          cp dist/connect-ip-tunnel \
+             dist/connect-ip-tunnel-gui.app/Contents/MacOS/connect-ip-tunnel
+          # macdeployqt 处理 .app bundle，自动收集 Qt framework
+          "${QT_ROOT_DIR}/bin/macdeployqt" \
+            dist/connect-ip-tunnel-gui.app -verbose=1 || true
+          # 打包（整个 .app bundle）
           cd dist
-          tar -czf "../${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}" .
+          tar -czf "../${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}" connect-ip-tunnel-gui.app
           cd ..
 
       - name: 收集产物（Linux x86_64，AppImage）
@@ -176,8 +178,8 @@ jobs:
           # .desktop 文件（不能有缩进）
           printf '[Desktop Entry]\nName=Connect-IP Tunnel\nExec=connect-ip-tunnel-gui\nIcon=connect-ip-tunnel-gui\nType=Application\nCategories=Network;\n' \
             > AppDir/usr/share/applications/connect-ip-tunnel-gui.desktop
-          # 占位图标（linuxdeployqt 要求存在）
-          touch AppDir/usr/share/icons/hicolor/256x256/apps/connect-ip-tunnel-gui.png
+          # 使用真实的 256x256 图标
+          cp resources/app_256.png AppDir/usr/share/icons/hicolor/256x256/apps/connect-ip-tunnel-gui.png
           # 找到系统 qmake
           QMAKE=$(command -v qmake6 2>/dev/null || command -v qmake 2>/dev/null || echo "")
           # 下载 linuxdeployqt（仅支持 x86_64）
@@ -218,6 +220,15 @@ jobs:
           tar -czf "../${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}" .
           cd ..
 
+      - name: 下载 wintun.dll（Windows）
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          # wintun 是 Windows TUN 驱动，内核在 Windows 上启动 TUN 设备时必需
+          curl -sSL https://www.wintun.net/builds/wintun-0.14.1.zip -o wintun.zip
+          7z e wintun.zip "wintun/bin/amd64/wintun.dll" -o dist/ -y
+          echo "✓ wintun.dll: $(ls -lh dist/wintun.dll)"
+
       - name: 收集产物（Windows）
         if: matrix.platform == 'windows'
         shell: bash
@@ -226,7 +237,7 @@ jobs:
           # GUI 二进制
           cp build/Release/${{ matrix.gui_artifact }} dist/ 2>/dev/null || \
           cp build/${{ matrix.gui_artifact }} dist/ 2>/dev/null || true
-          # 复制内核
+          # 内核
           cp dist/connect-ip-tunnel.exe dist/ 2>/dev/null || true
           # windeployqt 收集 Qt 运行时 DLL
           QT_BIN="${QT_ROOT_DIR}/bin"
@@ -236,7 +247,9 @@ jobs:
             --no-system-d3d-compiler \
             --no-opengl-sw \
             dist/${{ matrix.gui_artifact }}
-          # 打包
+          # 确认 wintun.dll 已在 dist/（上一步下载）
+          ls dist/wintun.dll
+          # 打包（包含：GUI.exe、内核.exe、Qt DLL、wintun.dll）
           cd dist
           7z a "../${{ steps.version.outputs.pkg_name }}.${{ matrix.pkg_ext }}" .
           cd ..

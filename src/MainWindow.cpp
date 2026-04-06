@@ -274,9 +274,17 @@ void MainWindow::onTrayDisconnect()
 void MainWindow::onTrayQuit()
 {
     m_forceQuit = true;
-    if (m_isConnected)
+    if (m_isConnected) {
+        // 等待内核进程真正退出后再退出 Qt 事件循环，避免竞态导致 UI 组件被访问时已析构
+        connect(m_core, &CoreProcess::stopped,
+                QApplication::instance(), &QCoreApplication::quit,
+                Qt::SingleShotConnection);
+        // 保底超时：若 5 秒内内核没退出则强制退出
+        QTimer::singleShot(5000, QApplication::instance(), &QCoreApplication::quit);
         onDisconnect();
-    QApplication::quit();
+    } else {
+        QApplication::quit();
+    }
 }
 
 // ── UI 更新 ───────────────────────────────────────────────────────────────────
@@ -373,6 +381,14 @@ void MainWindow::closeEvent(QCloseEvent *event)
         // 最小化到托盘，不退出
         hide();
         event->ignore();
+        // 首次最小化时显示气泡提示，告知用户程序仍在运行
+        if (!m_trayMsgShown) {
+            m_trayMsgShown = true;
+            m_tray->showTrayMessage(
+                tr("Connect-IP Tunnel"),
+                tr("程序已最小化到系统托盘，双击图标可重新打开窗口。"),
+                3000);
+        }
     } else {
         event->accept();
     }

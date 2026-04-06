@@ -48,4 +48,5 @@ private:
     QString        m_lastError;
     QString        m_tempConfig; // 临时 config 文件路径
     bool           m_portEmitted = false; // 只发射一次 adminPortReady
+    bool           m_stopping   = false;  // 标记为主动停止，避免误报崩溃
 };

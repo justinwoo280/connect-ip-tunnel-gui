@@ -1,0 +1,42 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0F172A" />
+            <stop offset="100%" stop-color="#1E293B" />
+        </linearGradient>
+        
+        <linearGradient id="cfBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#38BDF8" />
+            <stop offset="100%" stop-color="#0284C7" />
+        </linearGradient>
+        
+        <linearGradient id="cfOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#F97316" />
+            <stop offset="100%" stop-color="#EA580C" />
+        </linearGradient>
+    </defs>
+
+    <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
+
+    <g stroke="url(#cfBlue)" stroke-linecap="round" opacity="0.4" transform="skewX(-15) translate(40, 0)">
+        <line x1="80" y1="180" x2="220" y2="180" stroke-width="12" />
+        <line x1="120" y1="256" x2="180" y2="256" stroke-width="16" />
+        <line x1="60" y1="332" x2="240" y2="332" stroke-width="12" />
+    </g>
+
+    <g transform="skewX(-12) translate(70, 0)">
+        <path d="M256 90 L380 130 L380 270 C380 370 256 430 256 430 C256 430 132 370 132 270 L132 130 Z"
+              fill="#0F172A" stroke="url(#cfBlue)" stroke-width="22" stroke-linejoin="round" />
+
+        <path d="M256 120 L350 150 L350 270 C350 350 256 400 256 400 C256 400 162 350 162 270 L162 150 Z"
+              fill="url(#cfBlue)" opacity="0.15" />
+
+        <path d="M210 230 A50 50 0 0 1 300 230" fill="none" stroke="url(#cfOrange)" stroke-width="16" stroke-linecap="round" />
+        <polygon points="300,215 325,238 280,238" fill="url(#cfOrange)" />
+
+        <path d="M302 282 A50 50 0 0 1 212 282" fill="none" stroke="url(#cfOrange)" stroke-width="16" stroke-linecap="round" />
+        <polygon points="212,297 187,274 232,274" fill="url(#cfOrange)" />
+
+        <circle cx="256" cy="256" r="14" fill="url(#cfBlue)" />
+    </g>
+</svg>

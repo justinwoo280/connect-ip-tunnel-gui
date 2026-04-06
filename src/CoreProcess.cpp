@@ -80,9 +80,11 @@ void CoreProcess::stop()
     if (!isRunning())
         return;
 
+    m_stopping = true;  // 标记为主动停止，onProcessError 不会误报崩溃
     m_process->terminate();
     if (!m_process->waitForFinished(3000))
         m_process->kill();
+    m_stopping = false;
 
     cleanupTempFile();
 }
@@ -100,7 +102,13 @@ void CoreProcess::onProcessStarted()
 
 void CoreProcess::onProcessFinished(int exitCode, QProcess::ExitStatus status)
 {
-    Q_UNUSED(status)
+    // 主动停止时 stop() 已经处理了 cleanupTempFile，这里只负责日志和信号
+    // Crashed 状态下 onProcessError 也会触发，避免重复发射 stopped
+    if (status == QProcess::CrashExit && !m_stopping) {
+        // 真实崩溃：由 onProcessError 负责发射 stopped，这里不重复
+        emit logReceived(QString("[GUI] 内核进程异常退出，退出码: %1").arg(exitCode));
+        return;
+    }
     emit logReceived(QString("[GUI] 内核进程已退出，退出码: %1").arg(exitCode));
     cleanupTempFile();
     emit stopped();
@@ -108,11 +116,15 @@ void CoreProcess::onProcessFinished(int exitCode, QProcess::ExitStatus status)
 
 void CoreProcess::onProcessError(QProcess::ProcessError error)
 {
+    // 主动停止（terminate/kill）时，QProcess 会报 Crashed，属于正常现象，忽略即可
+    if (m_stopping && error == QProcess::Crashed)
+        return;
+
     QString msg;
     switch (error) {
     case QProcess::FailedToStart: msg = "进程启动失败（找不到可执行文件或权限不足）"; break;
-    case QProcess::Crashed:       msg = "进程崩溃";  break;
-    case QProcess::Timedout:      msg = "进程超时";  break;
+    case QProcess::Crashed:       msg = "内核进程意外崩溃"; break;
+    case QProcess::Timedout:      msg = "进程超时"; break;
     default:                      msg = "进程未知错误"; break;
     }
     m_lastError = msg;
