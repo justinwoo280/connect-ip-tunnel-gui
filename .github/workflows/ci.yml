@@ -90,6 +90,7 @@ jobs:
 
       # ── 编译 GUI ─────────────────────────────────────────────────
       - name: 清理旧的 CMake 缓存
+        shell: bash
         run: rm -rf build CMakeCache.txt CMakeFiles
 
       - name: 配置 CMake（Linux）

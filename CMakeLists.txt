@@ -101,6 +101,15 @@ if(WIN32)
 endif()
 
 # 安装规则
-install(TARGETS ${PROJECT_NAME}
-    RUNTIME DESTINATION bin
-)
+if(APPLE)
+    # macOS：MACOSX_BUNDLE 需要用 BUNDLE DESTINATION
+    install(TARGETS ${PROJECT_NAME}
+        BUNDLE  DESTINATION .
+        RUNTIME DESTINATION bin
+    )
+else()
+    # Windows / Linux：普通可执行文件
+    install(TARGETS ${PROJECT_NAME}
+        RUNTIME DESTINATION bin
+    )
+endif()
