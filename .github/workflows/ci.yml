@@ -175,8 +175,10 @@ jobs:
         shell: bash
         run: |
           # wintun 是 Windows TUN 驱动，内核在 Windows 上启动 TUN 设备时必需
+          mkdir -p dist
           curl -sSL https://www.wintun.net/builds/wintun-0.14.1.zip -o wintun.zip
-          7z e wintun.zip "wintun/bin/amd64/wintun.dll" -o dist/ -y
+          # 7z e 扁平解压，-odist/ 中间不能有空格
+          7z e wintun.zip -odist/ -y "wintun/bin/amd64/wintun.dll"
           echo "✓ wintun.dll: $(ls -lh dist/wintun.dll)"
 
       - name: 收集产物（Windows）
