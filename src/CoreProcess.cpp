@@ -8,6 +8,7 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTemporaryDir>
+#include <QTimer>
 
 CoreProcess::CoreProcess(QObject *parent)
     : QObject(parent)
@@ -80,13 +81,22 @@ void CoreProcess::stop()
     if (!isRunning())
         return;
 
-    m_stopping = true;  // 标记为主动停止，onProcessError 不会误报崩溃
-    m_process->terminate();
-    if (!m_process->waitForFinished(3000))
-        m_process->kill();
-    m_stopping = false;
+    m_stopping = true;  // 标记为主动停止，onProcessError / onProcessFinished 不会误报崩溃
+    // 注意：m_stopping 的清除在 onProcessFinished 里完成，不能在这里清除！
+    // 原因：terminate() 是异步的，onProcessFinished slot 在事件循环里触发，
+    //       如果在 waitForFinished() 返回后立即清除 m_stopping，
+    //       slot 触发时 m_stopping 已经是 false，导致误报"内核进程异常退出"。
 
-    cleanupTempFile();
+    m_process->terminate();
+
+    // 用 QTimer 异步 kill，避免阻塞事件循环
+    // 3 秒后如果进程还在运行，才强制 kill
+    QTimer::singleShot(3000, this, [this]() {
+        if (isRunning()) {
+            emit logReceived("[GUI] 内核进程未响应 SIGTERM，强制终止");
+            m_process->kill();
+        }
+    });
 }
 
 bool CoreProcess::isRunning() const
@@ -102,14 +112,22 @@ void CoreProcess::onProcessStarted()
 
 void CoreProcess::onProcessFinished(int exitCode, QProcess::ExitStatus status)
 {
-    // 主动停止时 stop() 已经处理了 cleanupTempFile，这里只负责日志和信号
-    // Crashed 状态下 onProcessError 也会触发，避免重复发射 stopped
-    if (status == QProcess::CrashExit && !m_stopping) {
-        // 真实崩溃：由 onProcessError 负责发射 stopped，这里不重复
+    // 在这里清除 m_stopping 标记（stop() 里不能清，因为 slot 是异步触发的）
+    bool wasStopping = m_stopping;
+    m_stopping = false;
+
+    if (status == QProcess::CrashExit && !wasStopping) {
+        // 真实崩溃（非主动停止）：记录日志，由 onProcessError 负责发射 stopped
         emit logReceived(QString("[GUI] 内核进程异常退出，退出码: %1").arg(exitCode));
         return;
     }
-    emit logReceived(QString("[GUI] 内核进程已退出，退出码: %1").arg(exitCode));
+
+    // 正常退出（主动停止或 exit 0）
+    if (wasStopping) {
+        emit logReceived("[GUI] 内核进程已正常停止");
+    } else {
+        emit logReceived(QString("[GUI] 内核进程已退出，退出码: %1").arg(exitCode));
+    }
     cleanupTempFile();
     emit stopped();
 }

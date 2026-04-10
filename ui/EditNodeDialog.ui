@@ -407,11 +407,21 @@
         </widget>
        </item>
 
-       <!-- 调试 -->
+       <!-- 拥塞控制 -->
        <item row="18" column="0">
-        <widget class="QLabel"><property name="text"><string>TLS Key Log 路径</string></property></widget>
+        <widget class="QLabel"><property name="text"><string>拥塞控制算法</string></property></widget>
        </item>
        <item row="18" column="1">
+        <widget class="QComboBox" name="comboCongestionAlgo">
+         <item><property name="text"><string>bbr2（推荐，对抗运营商 QoS）</string></property></item>
+         <item><property name="text"><string>cubic（默认，理想网络）</string></property></item>
+        </widget>
+       </item>
+       <!-- 调试 -->
+       <item row="19" column="0">
+        <widget class="QLabel"><property name="text"><string>TLS Key Log 路径</string></property></widget>
+       </item>
+       <item row="19" column="1">
         <widget class="QLineEdit" name="editKeyLogPath">
          <property name="placeholderText"><string>留空不启用（Wireshark 调试用）</string></property>
         </widget>

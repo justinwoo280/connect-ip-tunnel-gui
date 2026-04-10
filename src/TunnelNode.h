@@ -68,6 +68,10 @@ struct TunnelNode {
     // ── Bypass ───────────────────────────────────────────────────
     bool    enableBypass = true;  // 路由绕行防止回环
 
+    // ── 拥塞控制 ─────────────────────────────────────────────────
+    // 留空或 "cubic" 使用默认 CUBIC，"bbr2" 使用 BBRv2（推荐，对抗运营商 QoS）
+    QString congestionAlgo = "bbr2";
+
     // ── 调试 ─────────────────────────────────────────────────────
     QString keyLogPath;  // TLS key log 路径（Wireshark 调试用，留空不启用）
 
@@ -158,6 +162,12 @@ struct TunnelNode {
             http3["tls_handshake_timeout"] = QString("%1s").arg(tlsHandshakeTimeoutSec);
         if (maxResponseHeaderSec > 0)
             http3["max_response_header_sec"] = maxResponseHeaderSec;
+        // 拥塞控制：bbr2 推荐用于运营商 QoS 场景
+        if (!congestionAlgo.isEmpty() && congestionAlgo != "cubic") {
+            QJsonObject congestion;
+            congestion["algorithm"] = congestionAlgo;
+            http3["congestion"] = congestion;
+        }
 
         // ConnectIP
         QJsonObject connectip;
@@ -231,6 +241,7 @@ struct TunnelNode {
         o["addressAssignTimeoutSec"] = addressAssignTimeoutSec;
         o["maxReconnectDelaySec"]    = maxReconnectDelaySec;
         o["enableBypass"]      = enableBypass;
+        o["congestionAlgo"]    = congestionAlgo;
         o["keyLogPath"]        = keyLogPath;
         return o;
     }
@@ -279,6 +290,7 @@ struct TunnelNode {
         n.addressAssignTimeoutSec = o["addressAssignTimeoutSec"].toInt(30);
         n.maxReconnectDelaySec    = o["maxReconnectDelaySec"].toInt(30);
         n.enableBypass       = o["enableBypass"].toBool(true);
+        n.congestionAlgo     = o["congestionAlgo"].toString("bbr2");
         n.keyLogPath         = o["keyLogPath"].toString();
         return n;
     }

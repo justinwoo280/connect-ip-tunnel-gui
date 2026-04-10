@@ -76,6 +76,8 @@ void EditNodeDialog::setNode(const TunnelNode &node)
 
     // Bypass
     ui->checkEnableBypass->setChecked(node.enableBypass);
+    // 拥塞控制：bbr2=index0, cubic=index1
+    ui->comboCongestionAlgo->setCurrentIndex(node.congestionAlgo == "cubic" ? 1 : 0);
 
     // HTTP3 窗口调优
     ui->checkDisablePathMTUProbe->setChecked(node.disablePathMTUProbe);
@@ -141,6 +143,7 @@ TunnelNode EditNodeDialog::getNode() const
 
     // Bypass
     n.enableBypass = ui->checkEnableBypass->isChecked();
+    n.congestionAlgo = (ui->comboCongestionAlgo->currentIndex() == 1) ? "cubic" : "bbr2";
 
     // HTTP3 窗口调优
     n.disablePathMTUProbe    = ui->checkDisablePathMTUProbe->isChecked();
