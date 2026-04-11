@@ -59,6 +59,10 @@ struct TunnelNode {
     int     tlsHandshakeTimeoutSec = 0;   // TLS 握手超时（秒，0=不限）
     int     maxResponseHeaderSec  = 0;    // 最大响应头等待（秒，0=不限）
 
+    // ── Obfs（UDP 包级混��）─────────────────────────────────────
+    QString obfsType;                     // 混淆类型："salamander" 或留空不启用
+    QString obfsPassword;                 // 混淆密码（客户端/服务端必须相同）
+
     // ── ConnectIP 高级 ───────────────────────────────────────────
     bool    enableReconnect        = true;
     int     numSessions            = 1;    // 多 session 并行
@@ -148,6 +152,14 @@ struct TunnelNode {
 
         // HTTP3
         QJsonObject http3;
+        // Obfs（UDP 包级混淆）
+        if (!obfsType.isEmpty()) {
+            QJsonObject obfs;
+            obfs["type"] = obfsType;
+            if (!obfsPassword.isEmpty())
+                obfs["password"] = obfsPassword;
+            http3["obfs"] = obfs;
+        }
         http3["enable_datagrams"]       = enableDatagrams;
         http3["allow_0rtt"]             = allow0RTT;
         http3["max_idle_timeout"]       = QString("%1s").arg(maxIdleTimeoutSec);
@@ -234,6 +246,8 @@ struct TunnelNode {
         o["disableCompression"]      = disableCompression;
         o["tlsHandshakeTimeoutSec"]  = tlsHandshakeTimeoutSec;
         o["maxResponseHeaderSec"]    = maxResponseHeaderSec;
+        o["obfsType"]          = obfsType;
+        o["obfsPassword"]      = obfsPassword;
         o["enableReconnect"]   = enableReconnect;
         o["numSessions"]       = numSessions;
         o["maxIdleTimeoutSec"]  = maxIdleTimeoutSec;
@@ -283,6 +297,8 @@ struct TunnelNode {
         n.disableCompression     = o["disableCompression"].toBool(false);
         n.tlsHandshakeTimeoutSec = o["tlsHandshakeTimeoutSec"].toInt(0);
         n.maxResponseHeaderSec   = o["maxResponseHeaderSec"].toInt(0);
+        n.obfsType           = o["obfsType"].toString();
+        n.obfsPassword       = o["obfsPassword"].toString();
         n.enableReconnect    = o["enableReconnect"].toBool(true);
         n.numSessions        = o["numSessions"].toInt(1);
         n.maxIdleTimeoutSec  = o["maxIdleTimeoutSec"].toInt(30);

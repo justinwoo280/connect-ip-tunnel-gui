@@ -417,11 +417,30 @@
          <item><property name="text"><string>cubic（默认，理想网络）</string></property></item>
         </widget>
        </item>
-       <!-- 调试 -->
+       <!-- Obfs 混淆配置 -->
        <item row="19" column="0">
-        <widget class="QLabel"><property name="text"><string>TLS Key Log 路径</string></property></widget>
+        <widget class="QLabel"><property name="text"><string>Obfs 混淆类型</string></property></widget>
        </item>
        <item row="19" column="1">
+        <widget class="QComboBox" name="comboObfsType">
+         <item><property name="text"><string>禁用</string></property></item>
+         <item><property name="text"><string>Salamander（规避 DPI）</string></property></item>
+        </widget>
+       </item>
+       <item row="20" column="0">
+        <widget class="QLabel"><property name="text"><string>Obfs 混淆密码</string></property></widget>
+       </item>
+       <item row="20" column="1">
+        <widget class="QLineEdit" name="editObfsPassword">
+         <property name="placeholderText"><string>预共享密码（客户端和服务端必须相同）</string></property>
+         <property name="toolTip"><string>Salamander 混淆可规避运营商对 QUIC Long Header 的 DPI 识别</string></property>
+        </widget>
+       </item>
+       <!-- 调试 -->
+       <item row="21" column="0">
+        <widget class="QLabel"><property name="text"><string>TLS Key Log 路径</string></property></widget>
+       </item>
+       <item row="21" column="1">
         <widget class="QLineEdit" name="editKeyLogPath">
          <property name="placeholderText"><string>留空不启用（Wireshark 调试用）</string></property>
         </widget>

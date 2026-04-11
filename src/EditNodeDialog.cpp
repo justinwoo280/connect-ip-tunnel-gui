@@ -3,6 +3,8 @@
 
 #include <QFileDialog>
 #include <QLabel>
+#include <QLineEdit>
+#include <QComboBox>
 
 EditNodeDialog::EditNodeDialog(QWidget *parent)
     : QDialog(parent)
@@ -63,6 +65,15 @@ void EditNodeDialog::setNode(const TunnelNode &node)
     ui->editIPv4CIDR->setText(node.ipv4CIDR);
     ui->editIPv6CIDR->setText(node.ipv6CIDR);
 
+    // Obfs（UDP 包级混淆）
+    if (auto *comboObfsType = findChild<QComboBox*>(QStringLiteral("comboObfsType"))) {
+        int index = 0;
+        if (node.obfsType == "salamander") index = 1;
+        comboObfsType->setCurrentIndex(index);
+    }
+    if (auto *editObfsPassword = findChild<QLineEdit*>(QStringLiteral("editObfsPassword")))
+        editObfsPassword->setText(node.obfsPassword);
+    
     // 高级
     ui->checkAllow0RTT->setChecked(node.allow0RTT);
     ui->checkEnableReconnect->setChecked(node.enableReconnect);
@@ -141,6 +152,13 @@ TunnelNode EditNodeDialog::getNode() const
     n.addressAssignTimeoutSec = ui->spinAddressAssignTimeout->value();
     n.maxReconnectDelaySec    = ui->spinMaxReconnectDelay->value();
 
+    // Obfs（UDP 包级混淆）
+    if (auto *comboObfsType = findChild<QComboBox*>(QStringLiteral("comboObfsType"))) {
+        n.obfsType = (comboObfsType->currentIndex() == 1) ? "salamander" : "";
+    }
+    if (auto *editObfsPassword = findChild<QLineEdit*>(QStringLiteral("editObfsPassword")))
+        n.obfsPassword = editObfsPassword->text().trimmed();
+    
     // Bypass
     n.enableBypass = ui->checkEnableBypass->isChecked();
     n.congestionAlgo = (ui->comboCongestionAlgo->currentIndex() == 1) ? "cubic" : "bbr2";
