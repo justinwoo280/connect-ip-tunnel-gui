@@ -3,7 +3,7 @@
  <class>EditNodeDialog</class>
  <widget class="QDialog" name="EditNodeDialog">
   <property name="windowTitle"><string>编辑节点</string></property>
-  <property name="minimumSize"><size><width>500</width><height>560</height></size></property>
+  <property name="minimumSize"><size><width>620</width><height>620</height></size></property>
   <layout class="QVBoxLayout">
    <item>
     <widget class="QTabWidget" name="tabWidget">
@@ -151,6 +151,34 @@
          <property name="toolTip"><string>填入后将跳过 DoH 查询，直接使用此静态 ECH 配置（Base64 编码）</string></property>
         </widget>
        </item>
+       <item row="9" column="0">
+        <widget class="QLabel"><property name="text"><string>地址族偏好</string></property></widget>
+       </item>
+       <item row="9" column="1">
+        <widget class="QComboBox" name="comboPreferAddressFamily">
+         <property name="toolTip"><string>auto: Happy Eyeballs（IPv6 优先，失败时回退 IPv4，推荐）
+v4: 仅使用 IPv4
+v6: 仅使用 IPv6</string></property>
+         <item><property name="text"><string>auto（双栈 Happy Eyeballs）</string></property></item>
+         <item><property name="text"><string>仅 IPv4</string></property></item>
+         <item><property name="text"><string>仅 IPv6</string></property></item>
+        </widget>
+       </item>
+       <item row="10" column="0">
+        <widget class="QLabel"><property name="text"><string>Happy Eyeballs 延迟（毫秒）</string></property></widget>
+       </item>
+       <item row="10" column="1">
+        <widget class="QSpinBox" name="spinHappyEyeballsDelay">
+         <property name="minimum"><number>0</number></property>
+         <property name="maximum"><number>5000</number></property>
+         <property name="value"><number>50</number></property>
+         <property name="singleStep"><number>10</number></property>
+         <property name="suffix"><string> ms</string></property>
+         <property name="specialValueText"><string>内核默认</string></property>
+         <property name="toolTip"><string>双栈环境中 IPv6 与 IPv4 之间的交错延迟。
+RFC 8305 推荐 250ms；本项目默认 50ms（更激进）。</string></property>
+        </widget>
+       </item>
       </layout>
      </widget>
 
@@ -251,8 +279,14 @@
        <item row="2" column="1">
         <widget class="QSpinBox" name="spinNumSessions">
          <property name="minimum"><number>1</number></property>
-         <property name="maximum"><number>16</number></property>
+         <property name="maximum"><number>32</number></property>
          <property name="value"><number>1</number></property>
+         <property name="toolTip"><string>多 session 并行数。
+1  = 单连接（默认，最低开销）
+2-4 = 推荐家庭/办公场景（2-4 Gbps）
+4-8 = 高带宽多核服务器（8-16 Gbps）
+启用后客户端会并行建立 N 条 CONNECT-IP session 共享流量。
+建议同时勾选下方「多 Session 独立重连」让每条 session 独立重连，互不影响。</string></property>
         </widget>
        </item>
        <item row="3" column="0">
@@ -278,7 +312,8 @@
         <widget class="QSpinBox" name="spinMaxIdleTimeout">
          <property name="minimum"><number>5</number></property>
          <property name="maximum"><number>600</number></property>
-         <property name="value"><number>30</number></property>
+         <property name="value"><number>45</number></property>
+         <property name="suffix"><string> s</string></property>
         </widget>
        </item>
        <item row="6" column="0">
@@ -288,7 +323,8 @@
         <widget class="QSpinBox" name="spinKeepAlivePeriod">
          <property name="minimum"><number>1</number></property>
          <property name="maximum"><number>300</number></property>
-         <property name="value"><number>10</number></property>
+         <property name="value"><number>15</number></property>
+         <property name="suffix"><string> s</string></property>
         </widget>
        </item>
        <item row="7" column="0">
@@ -375,37 +411,9 @@
         </widget>
        </item>
 
-       <!-- HTTP3 额外调优 -->
-       <item row="15" column="0">
-        <widget class="QLabel"><property name="text"><string>禁用 HTTP3 压缩</string></property></widget>
-       </item>
-       <item row="15" column="1">
-        <widget class="QCheckBox" name="checkDisableCompression"/>
-       </item>
-       <item row="16" column="0">
-        <widget class="QLabel"><property name="text"><string>TLS 握手超时（秒）</string></property></widget>
-       </item>
-       <item row="16" column="1">
-        <widget class="QSpinBox" name="spinTLSHandshakeTimeout">
-         <property name="minimum"><number>0</number></property>
-         <property name="maximum"><number>120</number></property>
-         <property name="value"><number>0</number></property>
-         <property name="specialValueText"><string>不限</string></property>
-         <property name="toolTip"><string>0 表示不限制，建议 10~30 秒</string></property>
-        </widget>
-       </item>
-       <item row="17" column="0">
-        <widget class="QLabel"><property name="text"><string>最大响应头等待（秒）</string></property></widget>
-       </item>
-       <item row="17" column="1">
-        <widget class="QSpinBox" name="spinMaxResponseHeaderSec">
-         <property name="minimum"><number>0</number></property>
-         <property name="maximum"><number>120</number></property>
-         <property name="value"><number>0</number></property>
-         <property name="specialValueText"><string>不限</string></property>
-         <property name="toolTip"><string>0 表示不限制</string></property>
-        </widget>
-       </item>
+       <!-- 注意：原 row 15-17 (disable_compression / tls_handshake_timeout / max_response_header_sec)
+            已于 2026-04 移除 —— CONNECT-IP 走 datagram + capsule 路径，没有 HTTP 响应头与
+            HTTP3 压缩协商；内核已删除对应字段。row 18+ 编号保持不变以最小化布局抖动。 -->
 
        <!-- 拥塞控制 -->
        <item row="18" column="0">
@@ -434,13 +442,103 @@
         <widget class="QLineEdit" name="editObfsPassword">
          <property name="placeholderText"><string>预共享密码（客户端和服务端必须相同）</string></property>
          <property name="toolTip"><string>Salamander 混淆可规避运营商对 QUIC Long Header 的 DPI 识别</string></property>
+         <property name="echoMode"><enum>QLineEdit::PasswordEchoOnEdit</enum></property>
+        </widget>
+       </item>
+       <!-- 应用层心跳（CONNECT-IP capsule ping/pong） -->
+       <item row="21" column="0">
+        <widget class="QLabel"><property name="text"><string>应用层心跳周期</string></property></widget>
+       </item>
+       <item row="21" column="1">
+        <widget class="QSpinBox" name="spinAppKeepalivePeriod">
+         <property name="minimum"><number>0</number></property>
+         <property name="maximum"><number>600</number></property>
+         <property name="value"><number>25</number></property>
+         <property name="suffix"><string> s</string></property>
+         <property name="specialValueText"><string>禁用</string></property>
+         <property name="toolTip"><string>CONNECT-IP capsule 应用层 ping 发送周期。
+0 = 禁用应用层心跳（仅依赖 QUIC Keep-Alive）。</string></property>
+        </widget>
+       </item>
+       <item row="22" column="0">
+        <widget class="QLabel"><property name="text"><string>应用层心跳超时</string></property></widget>
+       </item>
+       <item row="22" column="1">
+        <widget class="QSpinBox" name="spinAppKeepaliveTimeout">
+         <property name="minimum"><number>1</number></property>
+         <property name="maximum"><number>600</number></property>
+         <property name="value"><number>30</number></property>
+         <property name="suffix"><string> s</string></property>
+         <property name="toolTip"><string>单次 ping 等 pong 的超时时间。</string></property>
+        </widget>
+       </item>
+       <item row="23" column="0">
+        <widget class="QLabel"><property name="text"><string>不健康判定阈值</string></property></widget>
+       </item>
+       <item row="23" column="1">
+        <widget class="QSpinBox" name="spinUnhealthyThreshold">
+         <property name="minimum"><number>1</number></property>
+         <property name="maximum"><number>100</number></property>
+         <property name="value"><number>3</number></property>
+         <property name="suffix"><string> 次</string></property>
+         <property name="toolTip"><string>连续 N 次心跳超时则视为 session 不健康并触发重连。</string></property>
+        </widget>
+       </item>
+       <item row="24" column="0">
+        <widget class="QLabel"><property name="text"><string>多 Session 独立重连</string></property></widget>
+       </item>
+       <item row="24" column="1">
+        <widget class="QCheckBox" name="checkPerSessionReconnect">
+         <property name="checked"><bool>true</bool></property>
+         <property name="toolTip"><string>开启后多 session 模式下每条 session 独立重连，互不影响。</string></property>
+        </widget>
+       </item>
+       <!-- UDP socket buffer & GSO（性能调优） -->
+       <item row="25" column="0">
+        <widget class="QLabel" name="labelUDPRecvBuffer"><property name="text"><string>UDP 接收缓冲区</string></property></widget>
+       </item>
+       <item row="25" column="1">
+        <widget class="QSpinBox" name="spinUDPRecvBuffer">
+         <property name="minimum"><number>65536</number></property>
+         <property name="maximum"><number>2147483647</number></property>
+         <property name="value"><number>16777216</number></property>
+         <property name="singleStep"><number>1048576</number></property>
+         <property name="suffix"><string> B</string></property>
+         <property name="toolTip"><string>UDP socket 接收缓冲区大小（字节），默认 16 MB。
+Linux 高带宽场景可增大到 32-64 MB（需 sysctl 放开 net.core.rmem_max）。
+Windows / macOS 内核会把超过系统上限的值静默 cap，配置过大无效。</string></property>
+        </widget>
+       </item>
+       <item row="26" column="0">
+        <widget class="QLabel" name="labelUDPSendBuffer"><property name="text"><string>UDP 发送缓冲区</string></property></widget>
+       </item>
+       <item row="26" column="1">
+        <widget class="QSpinBox" name="spinUDPSendBuffer">
+         <property name="minimum"><number>65536</number></property>
+         <property name="maximum"><number>2147483647</number></property>
+         <property name="value"><number>16777216</number></property>
+         <property name="singleStep"><number>1048576</number></property>
+         <property name="suffix"><string> B</string></property>
+         <property name="toolTip"><string>UDP socket 发送缓冲区大小（字节），默认 16 MB。
+Linux 同 net.core.wmem_max；其他平台同样会被系统静默 cap。</string></property>
+        </widget>
+       </item>
+       <item row="27" column="0">
+        <widget class="QLabel" name="labelEnableGSO"><property name="text"><string>启用 GSO/GRO（仅 Linux）</string></property></widget>
+       </item>
+       <item row="27" column="1">
+        <widget class="QCheckBox" name="checkEnableGSO">
+         <property name="checked"><bool>true</bool></property>
+         <property name="toolTip"><string>启用 Linux 内核的 GSO（UDP 分段卸载）/ GRO（接收合并）以提升 UDP 吞吐。
+• Linux：建议保持开启；显式关闭会通过 QUIC_GO_DISABLE_GSO 环境变量传给 quic-go
+• Windows / macOS：内核会自动按平台能力降级，此开关无实际作用</string></property>
         </widget>
        </item>
        <!-- 调试 -->
-       <item row="21" column="0">
+       <item row="28" column="0">
         <widget class="QLabel"><property name="text"><string>TLS Key Log 路径</string></property></widget>
        </item>
-       <item row="21" column="1">
+       <item row="28" column="1">
         <widget class="QLineEdit" name="editKeyLogPath">
          <property name="placeholderText"><string>留空不启用（Wireshark 调试用）</string></property>
         </widget>

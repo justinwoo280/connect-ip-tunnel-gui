@@ -34,10 +34,16 @@ private slots:
     void onDeleteNode();
     void onNodeSelectionChanged();
     void onNodeDoubleClicked(int row, int col);
+    void onNodeContextMenu(const QPoint &pos);
+    void onCopyConfigToClipboard();
 
     // 连接控制
     void onConnect();
     void onDisconnect();
+
+    // 日志面板
+    void onLogClear();
+    void onLogCopy();
 
     // CoreProcess 信号
     void onCoreStarted();
@@ -67,6 +73,8 @@ private:
     void updateButtons();
     void appendLog(const QString &msg);
     int  selectedNodeId() const;
+    // 状态徽章统一入口：state ∈ {"idle","connecting","connected","error"}
+    void setStatusIndicator(const QString &state, const QString &text);
 
     Ui::MainWindow *ui;
 
@@ -79,4 +87,10 @@ private:
     bool m_isConnected   = false;
     bool m_forceQuit     = false;
     bool m_trayMsgShown  = false; // 是否已经显示过"最小化到托盘"提示
+
+    // 实时速率计算（基于上一次轮询的累计字节数）
+    bool   m_hasPrevStats = false;
+    quint64 m_prevTxBytes  = 0;
+    quint64 m_prevRxBytes  = 0;
+    qint64  m_prevStatsMs  = 0; // QDateTime::currentMSecsSinceEpoch()
 };

@@ -5,6 +5,53 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QComboBox>
+#include <QSpinBox>
+#include <QCheckBox>
+#include <QFormLayout>
+#include <QScrollArea>
+#include <QTabWidget>
+#include <QVBoxLayout>
+#include <QWidget>
+
+namespace {
+// 把指定 tab 的内容用一个 QScrollArea 包起来，
+// 解决"高级"Tab 在 1080p 以下分辨率被裁剪、无法滚动的问题。
+// 不改 .ui 结构，原有的 ui->xxx / findChild 引用全部继续有效。
+void wrapTabInScrollArea(QTabWidget *tabs, QWidget *innerTab)
+{
+    if (!tabs || !innerTab) return;
+    int idx = tabs->indexOf(innerTab);
+    if (idx < 0) return;
+
+    QString title = tabs->tabText(idx);
+    QString tt    = tabs->tabToolTip(idx);
+
+    // 1. 临时移除 tab（不删除 widget）
+    tabs->removeTab(idx);
+
+    // 2. 创建外层 page + ScrollArea
+    auto *page = new QWidget(tabs);
+    auto *outer = new QVBoxLayout(page);
+    outer->setContentsMargins(0, 0, 0, 0);
+    outer->setSpacing(0);
+
+    auto *scroll = new QScrollArea(page);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setWidgetResizable(true);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    // 3. 把原 tab widget 作为 scroll area 的内容
+    innerTab->setParent(nullptr); // 解除原 tabs 的所有权
+    scroll->setWidget(innerTab);
+
+    outer->addWidget(scroll);
+
+    // 4. 插回原位
+    tabs->insertTab(idx, page, title);
+    if (!tt.isEmpty())
+        tabs->setTabToolTip(idx, tt);
+}
+} // namespace
 
 EditNodeDialog::EditNodeDialog(QWidget *parent)
     : QDialog(parent)
@@ -12,6 +59,45 @@ EditNodeDialog::EditNodeDialog(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowTitle(tr("编辑节点"));
+
+    // 适配低分屏：dialog 最小尺寸放宽，让 QScrollArea 起作用
+    setMinimumSize(560, 480);
+    resize(680, 700);
+
+    // 把"高级"和"TLS / ECH"两个项目较多的 tab 包进 QScrollArea，
+    // 1080p 以下也能完整滚动浏览，不会被裁剪。
+    if (auto *tabs = ui->tabWidget) {
+        wrapTabInScrollArea(tabs, ui->tabAdvanced);
+        wrapTabInScrollArea(tabs, ui->tabTLS);
+    }
+
+    // 平台相关字段可见性调整：
+    // - GSO/GRO（UDP 分段卸载）只有 Linux 内核支持，且当前内核实现会在 ApplyDefaults
+    //   阶段强制把 EnableGSO 写回 true（quic-go 内部自动按平台能力降级），
+    //   所以在非 Linux 平台上把开关隐藏，避免误导用户。
+    // - UDP socket buffer 在 Windows/macOS 平台上系统会静默 cap 到很小的上限，
+    //   配置 16-64MB 实际可能只生效几 MB，给字段加注释提示。
+#ifndef Q_OS_LINUX
+    if (auto *check = findChild<QCheckBox*>(QStringLiteral("checkEnableGSO"))) {
+        check->setEnabled(false);
+        check->setToolTip(tr("GSO/GRO 仅在 Linux 内核生效，当前平台已自动降级，无需配置。"));
+        if (auto *form = qobject_cast<QFormLayout*>(check->parentWidget()->layout())) {
+            if (auto *lbl = qobject_cast<QLabel*>(form->labelForField(check)))
+                lbl->setText(tr("启用 GSO/GRO（仅 Linux）"));
+        }
+    }
+    auto annotateLinuxOnly = [this](const QString &spinName, const QString &hint) {
+        auto *spin = findChild<QSpinBox*>(spinName);
+        if (!spin) return;
+        QString old = spin->toolTip();
+        spin->setToolTip(old + (old.isEmpty() ? QString() : QStringLiteral("\n\n")) + hint);
+    };
+    const QString udpHint = tr("注意：Windows / macOS 等非 Linux 平台对 SO_RCVBUF/SO_SNDBUF "
+                               "有较低的系统级上限，过大的值会被内核静默 cap。\n"
+                               "如需提升，请在系统级调优 net.core.rmem_max 等参数。");
+    annotateLinuxOnly(QStringLiteral("spinUDPRecvBuffer"), udpHint);
+    annotateLinuxOnly(QStringLiteral("spinUDPSendBuffer"), udpHint);
+#endif
 
     connect(ui->checkEnableECH, &QCheckBox::toggled,
             this, &EditNodeDialog::onECHToggled);
@@ -55,6 +141,15 @@ void EditNodeDialog::setNode(const TunnelNode &node)
     ui->editECHDomain->setText(node.echDomain);
     ui->editECHDohServer->setText(node.echDohServer);
     ui->editECHConfigListB64->setText(node.echConfigListB64);
+    // 地址族偏好（auto=0, v4=1, v6=2）
+    if (auto *combo = findChild<QComboBox*>(QStringLiteral("comboPreferAddressFamily"))) {
+        int idx = 0;
+        if (node.preferAddressFamily == "v4") idx = 1;
+        else if (node.preferAddressFamily == "v6") idx = 2;
+        combo->setCurrentIndex(idx);
+    }
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinHappyEyeballsDelay")))
+        spin->setValue(node.happyEyeballsDelayMs);
 
     // TUN
     ui->editTunName->setText(node.tunName);
@@ -96,9 +191,26 @@ void EditNodeDialog::setNode(const TunnelNode &node)
     ui->spinMaxStreamWindow->setValue(static_cast<int>(node.maxStreamWindow));
     ui->spinInitialConnWindow->setValue(static_cast<int>(node.initialConnWindow));
     ui->spinMaxConnWindow->setValue(static_cast<int>(node.maxConnWindow));
-    ui->checkDisableCompression->setChecked(node.disableCompression);
-    ui->spinTLSHandshakeTimeout->setValue(node.tlsHandshakeTimeoutSec);
-    ui->spinMaxResponseHeaderSec->setValue(node.maxResponseHeaderSec);
+    // 注：原 disableCompression / tlsHandshakeTimeoutSec / maxResponseHeaderSec
+    // 三个字段已随内核同步移除（CONNECT-IP 不走常规 HTTP 路径，这些选项无作用）。
+
+    // 应用层心跳（CONNECT-IP capsule ping/pong）
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinAppKeepalivePeriod")))
+        spin->setValue(node.appKeepalivePeriodSec);
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinAppKeepaliveTimeout")))
+        spin->setValue(node.appKeepaliveTimeoutSec);
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinUnhealthyThreshold")))
+        spin->setValue(node.unhealthyThreshold);
+    if (auto *check = findChild<QCheckBox*>(QStringLiteral("checkPerSessionReconnect")))
+        check->setChecked(node.perSessionReconnect);
+
+    // UDP socket buffer & GSO
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinUDPRecvBuffer")))
+        spin->setValue(static_cast<int>(node.udpRecvBuffer));
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinUDPSendBuffer")))
+        spin->setValue(static_cast<int>(node.udpSendBuffer));
+    if (auto *check = findChild<QCheckBox*>(QStringLiteral("checkEnableGSO")))
+        check->setChecked(node.enableGSO);
 
     // 调试
     ui->editKeyLogPath->setText(node.keyLogPath);
@@ -131,6 +243,16 @@ TunnelNode EditNodeDialog::getNode() const
     n.echDomain          = ui->editECHDomain->text().trimmed();
     n.echDohServer       = ui->editECHDohServer->text().trimmed();
     n.echConfigListB64   = ui->editECHConfigListB64->text().trimmed();
+    // 地址族偏好
+    if (auto *combo = findChild<QComboBox*>(QStringLiteral("comboPreferAddressFamily"))) {
+        switch (combo->currentIndex()) {
+        case 1:  n.preferAddressFamily = "v4"; break;
+        case 2:  n.preferAddressFamily = "v6"; break;
+        default: n.preferAddressFamily = "auto"; break;
+        }
+    }
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinHappyEyeballsDelay")))
+        n.happyEyeballsDelayMs = spin->value();
 
     // TUN
     n.tunName = ui->editTunName->text().trimmed();
@@ -169,9 +291,23 @@ TunnelNode EditNodeDialog::getNode() const
     n.maxStreamWindow        = ui->spinMaxStreamWindow->value();
     n.initialConnWindow      = ui->spinInitialConnWindow->value();
     n.maxConnWindow          = ui->spinMaxConnWindow->value();
-    n.disableCompression     = ui->checkDisableCompression->isChecked();
-    n.tlsHandshakeTimeoutSec = ui->spinTLSHandshakeTimeout->value();
-    n.maxResponseHeaderSec   = ui->spinMaxResponseHeaderSec->value();
+    // 应用层心跳
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinAppKeepalivePeriod")))
+        n.appKeepalivePeriodSec = spin->value();
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinAppKeepaliveTimeout")))
+        n.appKeepaliveTimeoutSec = spin->value();
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinUnhealthyThreshold")))
+        n.unhealthyThreshold = spin->value();
+    if (auto *check = findChild<QCheckBox*>(QStringLiteral("checkPerSessionReconnect")))
+        n.perSessionReconnect = check->isChecked();
+
+    // UDP socket buffer & GSO
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinUDPRecvBuffer")))
+        n.udpRecvBuffer = spin->value();
+    if (auto *spin = findChild<QSpinBox*>(QStringLiteral("spinUDPSendBuffer")))
+        n.udpSendBuffer = spin->value();
+    if (auto *check = findChild<QCheckBox*>(QStringLiteral("checkEnableGSO")))
+        n.enableGSO = check->isChecked();
 
     // 调试
     n.keyLogPath = ui->editKeyLogPath->text().trimmed();

@@ -6,7 +6,7 @@
    <string>Connect-IP Tunnel</string>
   </property>
   <property name="minimumSize">
-   <size><width>800</width><height>560</height></size>
+   <size><width>900</width><height>620</height></size>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -14,18 +14,27 @@
      <layout class="QHBoxLayout" name="toolbarLayout">
       <item>
        <widget class="QPushButton" name="btnAdd">
-        <property name="text"><string>+ 添加</string></property>
+        <property name="text"><string>添加</string></property>
+        <property name="toolTip"><string>添加新的隧道节点 (Ctrl+N)</string></property>
+        <property name="shortcut"><string>Ctrl+N</string></property>
+        <property name="minimumWidth"><number>72</number></property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="btnEdit">
-        <property name="text"><string>✎ 编辑</string></property>
+        <property name="text"><string>编辑</string></property>
+        <property name="toolTip"><string>编辑选中节点 (Ctrl+E)</string></property>
+        <property name="shortcut"><string>Ctrl+E</string></property>
+        <property name="minimumWidth"><number>72</number></property>
         <property name="enabled"><bool>false</bool></property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="btnDelete">
-        <property name="text"><string>✕ 删除</string></property>
+        <property name="text"><string>删除</string></property>
+        <property name="toolTip"><string>删除选中节点 (Del)</string></property>
+        <property name="shortcut"><string>Del</string></property>
+        <property name="minimumWidth"><number>72</number></property>
         <property name="enabled"><bool>false</bool></property>
        </widget>
       </item>
@@ -38,13 +47,19 @@
       </item>
       <item>
        <widget class="QPushButton" name="btnConnect">
-        <property name="text"><string>▶ 连接</string></property>
+        <property name="text"><string>连接</string></property>
+        <property name="toolTip"><string>连接选中节点 (Ctrl+Return)</string></property>
+        <property name="shortcut"><string>Ctrl+Return</string></property>
+        <property name="minimumWidth"><number>96</number></property>
         <property name="enabled"><bool>false</bool></property>
+        <property name="styleSheet"><string>QPushButton { font-weight: 600; }</string></property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="btnDisconnect">
-        <property name="text"><string>■ 断开</string></property>
+        <property name="text"><string>断开</string></property>
+        <property name="toolTip"><string>断开当前连接</string></property>
+        <property name="minimumWidth"><number>96</number></property>
         <property name="enabled"><bool>false</bool></property>
        </widget>
       </item>
@@ -54,109 +69,196 @@
      <widget class="QSplitter" name="splitterMain">
       <property name="orientation"><enum>Qt::Horizontal</enum></property>
       <widget class="QTableWidget" name="tableNodes">
-       <property name="minimumWidth"><number>280</number></property>
+       <property name="minimumWidth"><number>300</number></property>
+       <property name="alternatingRowColors"><bool>true</bool></property>
+       <property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property>
+       <property name="selectionMode"><enum>QAbstractItemView::SingleSelection</enum></property>
+       <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
+       <property name="showGrid"><bool>false</bool></property>
       </widget>
       <widget class="QWidget" name="statusPanel">
        <layout class="QVBoxLayout" name="statusLayout">
+        <property name="spacing"><number>10</number></property>
+        <property name="leftMargin"><number>12</number></property>
+        <property name="rightMargin"><number>12</number></property>
+        <property name="topMargin"><number>10</number></property>
+        <!-- ── 顶部状态卡片：大号徽章 + 节点名 ── -->
         <item>
-         <widget class="QLabel" name="labelStatus">
-          <property name="text"><string>○ 未连接</string></property>
-          <property name="alignment"><set>Qt::AlignCenter</set></property>
-          <property name="styleSheet"><string>color: gray; font-size: 14px;</string></property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QGroupBox" name="groupStats">
-          <property name="title"><string>连接信息</string></property>
-          <layout class="QFormLayout" name="formStats">
-           <item row="0" column="0">
-            <widget class="QLabel" name="label_ip">
-             <property name="text"><string>分配 IP</string></property>
+         <widget class="QFrame" name="frameStatusCard">
+          <property name="frameShape"><enum>QFrame::StyledPanel</enum></property>
+          <property name="styleSheet"><string>QFrame#frameStatusCard {
+  background-color: palette(base);
+  border: 1px solid palette(mid);
+  border-radius: 8px;
+}</string></property>
+          <layout class="QVBoxLayout">
+           <property name="spacing"><number>4</number></property>
+           <item>
+            <layout class="QHBoxLayout" name="layoutStatusRow">
+             <property name="spacing"><number>8</number></property>
+             <item>
+              <spacer name="spacerStatusLeft">
+               <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               <property name="sizeType"><enum>QSizePolicy::Expanding</enum></property>
+               <property name="sizeHint" stdset="0"><size><width>1</width><height>1</height></size></property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLabel" name="labelStatusDot">
+               <property name="text"><string/></property>
+               <property name="minimumSize"><size><width>14</width><height>14</height></size></property>
+               <property name="maximumSize"><size><width>14</width><height>14</height></size></property>
+               <property name="alignment"><set>Qt::AlignCenter</set></property>
+               <property name="styleSheet"><string>QLabel#labelStatusDot { background-color: #9e9e9e; border-radius: 7px; }</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="labelStatus">
+               <property name="text"><string>未连接</string></property>
+               <property name="alignment"><set>Qt::AlignCenter</set></property>
+               <property name="styleSheet"><string>color: palette(mid); font-size: 22px; font-weight: 600;</string></property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="spacerStatusRight">
+               <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               <property name="sizeType"><enum>QSizePolicy::Expanding</enum></property>
+               <property name="sizeHint" stdset="0"><size><width>1</width><height>1</height></size></property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QLabel" name="labelActiveNode">
+             <property name="text"><string> </string></property>
+             <property name="alignment"><set>Qt::AlignCenter</set></property>
+             <property name="styleSheet"><string>color: palette(text); font-size: 12px;</string></property>
             </widget>
            </item>
-           <item row="0" column="1">
-            <widget class="QLabel" name="labelAssignedIP">
+           <item>
+            <widget class="QLabel" name="labelAssignedIPLarge">
              <property name="text"><string>-</string></property>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="label_tun">
-             <property name="text"><string>TUN 设备</string></property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QLabel" name="labelTunName">
-             <property name="text"><string>-</string></property>
-            </widget>
-           </item>
-           <item row="2" column="0">
-            <widget class="QLabel" name="label_uptime">
-             <property name="text"><string>运行时间</string></property>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QLabel" name="labelUptime">
-             <property name="text"><string>-</string></property>
-            </widget>
-           </item>
-           <item row="3" column="0">
-            <widget class="QLabel" name="label_tx">
-             <property name="text"><string>↑ 上行</string></property>
-            </widget>
-           </item>
-           <item row="3" column="1">
-            <widget class="QLabel" name="labelTxBytes">
-             <property name="text"><string>-</string></property>
-            </widget>
-           </item>
-           <item row="4" column="0">
-            <widget class="QLabel" name="label_rx">
-             <property name="text"><string>↓ 下行</string></property>
-            </widget>
-           </item>
-           <item row="4" column="1">
-            <widget class="QLabel" name="labelRxBytes">
-             <property name="text"><string>-</string></property>
-            </widget>
-           </item>
-           <item row="5" column="0">
-            <widget class="QLabel" name="label_txpkt">
-             <property name="text"><string>↑ 上行包数</string></property>
-            </widget>
-           </item>
-           <item row="5" column="1">
-            <widget class="QLabel" name="labelTxPackets">
-             <property name="text"><string>-</string></property>
-            </widget>
-           </item>
-           <item row="6" column="0">
-            <widget class="QLabel" name="label_rxpkt">
-             <property name="text"><string>↓ 下行包数</string></property>
-            </widget>
-           </item>
-           <item row="6" column="1">
-            <widget class="QLabel" name="labelRxPackets">
-             <property name="text"><string>-</string></property>
-            </widget>
-           </item>
-           <item row="7" column="0">
-            <widget class="QLabel" name="label_drops">
-             <property name="text"><string>丢包数</string></property>
-            </widget>
-           </item>
-           <item row="7" column="1">
-            <widget class="QLabel" name="labelDrops">
-             <property name="text"><string>-</string></property>
+             <property name="alignment"><set>Qt::AlignCenter</set></property>
+             <property name="textInteractionFlags"><set>Qt::TextSelectableByMouse</set></property>
+             <property name="styleSheet"><string>color: palette(text); font-size: 16px; font-family: 'Consolas','Menlo',monospace;</string></property>
             </widget>
            </item>
           </layout>
          </widget>
         </item>
+
+        <!-- ── 实时速率（大数字） ── -->
+        <item>
+         <widget class="QGroupBox" name="groupRate">
+          <property name="title"><string>实时速率</string></property>
+          <layout class="QHBoxLayout">
+           <item>
+            <layout class="QVBoxLayout">
+             <item>
+              <widget class="QLabel">
+               <property name="text"><string>↑ 上行</string></property>
+               <property name="alignment"><set>Qt::AlignCenter</set></property>
+               <property name="styleSheet"><string>color: #888; font-size: 11px;</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="labelTxRate">
+               <property name="text"><string>0 B/s</string></property>
+               <property name="alignment"><set>Qt::AlignCenter</set></property>
+               <property name="styleSheet"><string>color: #4caf50; font-size: 16px; font-weight: 600;</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QVBoxLayout">
+             <item>
+              <widget class="QLabel">
+               <property name="text"><string>↓ 下行</string></property>
+               <property name="alignment"><set>Qt::AlignCenter</set></property>
+               <property name="styleSheet"><string>color: #888; font-size: 11px;</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="labelRxRate">
+               <property name="text"><string>0 B/s</string></property>
+               <property name="alignment"><set>Qt::AlignCenter</set></property>
+               <property name="styleSheet"><string>color: #2196f3; font-size: 16px; font-weight: 600;</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- ── 累计统计（紧凑 form） ── -->
+        <item>
+         <widget class="QGroupBox" name="groupStats">
+          <property name="title"><string>会话统计</string></property>
+          <layout class="QFormLayout" name="formStats">
+           <property name="horizontalSpacing"><number>12</number></property>
+           <property name="verticalSpacing"><number>4</number></property>
+           <item row="0" column="0">
+            <widget class="QLabel"><property name="text"><string>分配 IP</string></property></widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="labelAssignedIP">
+             <property name="text"><string>-</string></property>
+             <property name="textInteractionFlags"><set>Qt::TextSelectableByMouse</set></property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel"><property name="text"><string>TUN 设备</string></property></widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLabel" name="labelTunName"><property name="text"><string>-</string></property></widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel"><property name="text"><string>运行时间</string></property></widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLabel" name="labelUptime"><property name="text"><string>-</string></property></widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel"><property name="text"><string>↑ 累计</string></property></widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QLabel" name="labelTxBytes"><property name="text"><string>-</string></property></widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel"><property name="text"><string>↓ 累计</string></property></widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QLabel" name="labelRxBytes"><property name="text"><string>-</string></property></widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel"><property name="text"><string>↑ 包数</string></property></widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QLabel" name="labelTxPackets"><property name="text"><string>-</string></property></widget>
+           </item>
+           <item row="6" column="0">
+            <widget class="QLabel"><property name="text"><string>↓ 包数</string></property></widget>
+           </item>
+           <item row="6" column="1">
+            <widget class="QLabel" name="labelRxPackets"><property name="text"><string>-</string></property></widget>
+           </item>
+           <item row="7" column="0">
+            <widget class="QLabel"><property name="text"><string>丢包</string></property></widget>
+           </item>
+           <item row="7" column="1">
+            <widget class="QLabel" name="labelDrops"><property name="text"><string>-</string></property></widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
         <item>
          <spacer>
           <property name="orientation"><enum>Qt::Vertical</enum></property>
           <property name="sizeType"><enum>QSizePolicy::Expanding</enum></property>
-          <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
+          <property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property>
          </spacer>
         </item>
        </layout>
@@ -166,13 +268,53 @@
     <item>
      <widget class="QGroupBox" name="groupLog">
       <property name="title"><string>日志</string></property>
-      <property name="maximumHeight"><number>160</number></property>
+      <property name="minimumHeight"><number>150</number></property>
       <layout class="QVBoxLayout" name="logLayout">
+       <property name="leftMargin"><number>6</number></property>
+       <property name="rightMargin"><number>6</number></property>
+       <property name="topMargin"><number>4</number></property>
+       <property name="bottomMargin"><number>4</number></property>
+       <property name="spacing"><number>4</number></property>
+       <item>
+        <layout class="QHBoxLayout" name="logToolbar">
+         <property name="spacing"><number>6</number></property>
+         <item>
+          <widget class="QCheckBox" name="checkAutoScroll">
+           <property name="text"><string>自动滚动</string></property>
+           <property name="toolTip"><string>关闭后可暂停自动滚动以查看历史日志</string></property>
+           <property name="checked"><bool>true</bool></property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="spacerLogTb">
+           <property name="orientation"><enum>Qt::Horizontal</enum></property>
+           <property name="sizeType"><enum>QSizePolicy::Expanding</enum></property>
+           <property name="sizeHint" stdset="0"><size><width>10</width><height>10</height></size></property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnLogCopy">
+           <property name="text"><string>复制</string></property>
+           <property name="toolTip"><string>复制全部日志到剪贴板</string></property>
+           <property name="maximumWidth"><number>72</number></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnLogClear">
+           <property name="text"><string>清空</string></property>
+           <property name="toolTip"><string>清空日志面板</string></property>
+           <property name="maximumWidth"><number>72</number></property>
+          </widget>
+         </item>
+        </layout>
+       </item>
        <item>
         <widget class="QTextBrowser" name="textLog">
          <property name="font">
-          <font><family>Courier New</family><pointsize>9</pointsize></font>
+          <font><family>Consolas</family><pointsize>9</pointsize></font>
          </property>
+         <property name="lineWrapMode"><enum>QTextEdit::NoWrap</enum></property>
+         <property name="contextMenuPolicy"><enum>Qt::DefaultContextMenu</enum></property>
         </widget>
        </item>
       </layout>
