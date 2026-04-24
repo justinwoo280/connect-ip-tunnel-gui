@@ -100,17 +100,29 @@
        <item row="0" column="1">
         <widget class="QLineEdit" name="editServerName"/>
        </item>
+       <!-- 注：原"跳过证书验证"复选框已永久移除：内核已禁用该字段，
+            写出 false 触发 deprecated 警告，写出 true 直接拒绝启动。 -->
        <item row="1" column="0">
-        <widget class="QLabel"><property name="text"><string>跳过证书验证</string></property></widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QCheckBox" name="checkInsecureSkipVerify"/>
-       </item>
-       <item row="2" column="0">
         <widget class="QLabel"><property name="text"><string>启用后量子密钥交换 (PQC)</string></property></widget>
        </item>
-       <item row="2" column="1">
+       <item row="1" column="1">
         <widget class="QCheckBox" name="checkEnablePQC"/>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel"><property name="text"><string>服务端 CA 证书 (PEM)</string></property></widget>
+       </item>
+       <item row="2" column="1">
+        <layout class="QHBoxLayout">
+         <item>
+          <widget class="QLineEdit" name="editServerCAFile">
+           <property name="placeholderText"><string>留空 = 用 Mozilla / 系统 CA；自签 CA 部署填这里</string></property>
+           <property name="toolTip"><string>信任锚优先级：server_ca_file &gt; use_mozilla_ca &gt; use_system_cas
+企业内网 mTLS 部署的推荐做法：用 certsrv 签发 server.crt 与 ca.crt，
+把 ca.crt 路径填在这里，TLS 握手只信任本组织 CA，杜绝 MITM。</string></property>
+          </widget>
+         </item>
+         <item><widget class="QPushButton" name="btnBrowseServerCA"><property name="text"><string>浏览...</string></property><property name="maximumWidth"><number>64</number></property></widget></item>
+        </layout>
        </item>
        <item row="3" column="0">
         <widget class="QLabel"><property name="text"><string>使用 Mozilla CA 根证书</string></property></widget>
@@ -280,7 +292,7 @@ RFC 8305 推荐 250ms；本项目默认 50ms（更激进）。</string></propert
         <widget class="QSpinBox" name="spinNumSessions">
          <property name="minimum"><number>1</number></property>
          <property name="maximum"><number>32</number></property>
-         <property name="value"><number>1</number></property>
+         <property name="value"><number>4</number></property>
          <property name="toolTip"><string>多 session 并行数。
 1  = 单连接（默认，最低开销）
 2-4 = 推荐家庭/办公场景（2-4 Gbps）
@@ -353,10 +365,21 @@ RFC 8305 推荐 250ms；本项目默认 50ms（更激进）。</string></propert
         <widget class="QLabel"><property name="text"><string>启用路由绕行 (Bypass)</string></property></widget>
        </item>
        <item row="9" column="1">
-        <widget class="QCheckBox" name="checkEnableBypass">
-         <property name="checked"><bool>true</bool></property>
-         <property name="toolTip"><string>防止隧道流量回环，通常应保持开启</string></property>
-        </widget>
+        <layout class="QHBoxLayout">
+         <item>
+          <widget class="QCheckBox" name="checkEnableBypass">
+           <property name="checked"><bool>true</bool></property>
+           <property name="toolTip"><string>防止隧道流量回环，通常应保持开启</string></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="checkBypassStrict">
+           <property name="text"><string>严格模式（探测失败报错）</string></property>
+           <property name="toolTip"><string>严格模式：bypass 探测失败时直接报错，而不是降级到默认路由。
+适合对回环敏感的生产环境，调试时建议关闭以便降级排查。</string></property>
+          </widget>
+         </item>
+        </layout>
        </item>
 
        <!-- HTTP3 窗口调优 -->
@@ -534,11 +557,139 @@ Linux 同 net.core.wmem_max；其他平台同样会被系统静默 cap。</strin
 • Windows / macOS：内核会自动按平台能力降级，此开关无实际作用</string></property>
         </widget>
        </item>
+       <!-- ── BBRv2 子参数（仅 congestion=bbr2 时生效，留空 / 0 = 内核默认）── -->
+       <item row="28" column="0" colspan="2">
+        <widget class="QLabel">
+         <property name="text"><string>━━━ BBRv2 高级参数（仅 bbr2 模式生效，全部留空 = 内核默认）━━━</string></property>
+         <property name="styleSheet"><string>color: #666; font-style: italic; margin-top: 6px;</string></property>
+        </widget>
+       </item>
+       <item row="29" column="0">
+        <widget class="QLabel"><property name="text"><string>BBRv2 丢包阈值</string></property></widget>
+       </item>
+       <item row="29" column="1">
+        <widget class="QDoubleSpinBox" name="spinBBR2LossThreshold">
+         <property name="minimum"><double>0.0</double></property>
+         <property name="maximum"><double>1.0</double></property>
+         <property name="singleStep"><double>0.005</double></property>
+         <property name="decimals"><number>4</number></property>
+         <property name="specialValueText"><string>内核默认（0.015）</string></property>
+         <property name="toolTip"><string>触发带宽下调的最低丢包率（默认 0.015 即 1.5%）。
+运营商随机丢包通常 &lt; 1%，提高此阈值可避免误判拥塞。</string></property>
+        </widget>
+       </item>
+       <item row="30" column="0">
+        <widget class="QLabel"><property name="text"><string>BBRv2 Beta（带宽保留比例）</string></property></widget>
+       </item>
+       <item row="30" column="1">
+        <widget class="QDoubleSpinBox" name="spinBBR2Beta">
+         <property name="minimum"><double>0.0</double></property>
+         <property name="maximum"><double>1.0</double></property>
+         <property name="singleStep"><double>0.05</double></property>
+         <property name="decimals"><number>3</number></property>
+         <property name="specialValueText"><string>内核默认（0.3）</string></property>
+         <property name="toolTip"><string>丢包时带宽下调比例，0.3 = 保留 70% 带宽。</string></property>
+        </widget>
+       </item>
+       <item row="31" column="0">
+        <widget class="QLabel"><property name="text"><string>BBRv2 Startup 满速轮数</string></property></widget>
+       </item>
+       <item row="31" column="1">
+        <widget class="QSpinBox" name="spinBBR2StartupFullBwRounds">
+         <property name="minimum"><number>0</number></property>
+         <property name="maximum"><number>20</number></property>
+         <property name="value"><number>0</number></property>
+         <property name="specialValueText"><string>内核默认（3）</string></property>
+         <property name="toolTip"><string>判定带宽已达瓶颈所需的连续轮数。</string></property>
+        </widget>
+       </item>
+       <item row="32" column="0">
+        <widget class="QLabel"><property name="text"><string>BBRv2 ProbeRTT 周期（秒）</string></property></widget>
+       </item>
+       <item row="32" column="1">
+        <widget class="QSpinBox" name="spinBBR2ProbeRTTPeriod">
+         <property name="minimum"><number>0</number></property>
+         <property name="maximum"><number>600</number></property>
+         <property name="value"><number>0</number></property>
+         <property name="suffix"><string> s</string></property>
+         <property name="specialValueText"><string>内核默认（10s）</string></property>
+        </widget>
+       </item>
+       <item row="33" column="0">
+        <widget class="QLabel"><property name="text"><string>BBRv2 ProbeRTT 持续（毫秒）</string></property></widget>
+       </item>
+       <item row="33" column="1">
+        <widget class="QSpinBox" name="spinBBR2ProbeRTTDuration">
+         <property name="minimum"><number>0</number></property>
+         <property name="maximum"><number>5000</number></property>
+         <property name="value"><number>0</number></property>
+         <property name="suffix"><string> ms</string></property>
+         <property name="specialValueText"><string>内核默认（200ms）</string></property>
+        </widget>
+       </item>
+       <item row="34" column="0">
+        <widget class="QLabel"><property name="text"><string>BBRv2 BwLo 下调策略</string></property></widget>
+       </item>
+       <item row="34" column="1">
+        <widget class="QComboBox" name="comboBBR2BwLoReduction">
+         <property name="toolTip"><string>带宽下调策略：default / minrtt / inflight / cwnd
+留空 = 走内核默认（default）</string></property>
+         <item><property name="text"><string>内核默认（default）</string></property></item>
+         <item><property name="text"><string>default</string></property></item>
+         <item><property name="text"><string>minrtt</string></property></item>
+         <item><property name="text"><string>inflight</string></property></item>
+         <item><property name="text"><string>cwnd</string></property></item>
+        </widget>
+       </item>
+       <item row="35" column="0">
+        <widget class="QLabel"><property name="text"><string>BBRv2 激进模式</string></property></widget>
+       </item>
+       <item row="35" column="1">
+        <widget class="QCheckBox" name="checkBBR2Aggressive">
+         <property name="toolTip"><string>初始窗口更大，适合高带宽低延迟线路。</string></property>
+        </widget>
+       </item>
+       <!-- ── 管理 API ── -->
+       <item row="36" column="0" colspan="2">
+        <widget class="QLabel">
+         <property name="text"><string>━━━ 管理 / 调试 API（admin_listen / admin_token / pprof）━━━</string></property>
+         <property name="styleSheet"><string>color: #666; font-style: italic; margin-top: 6px;</string></property>
+        </widget>
+       </item>
+       <item row="37" column="0">
+        <widget class="QLabel"><property name="text"><string>Admin 监听地址</string></property></widget>
+       </item>
+       <item row="37" column="1">
+        <widget class="QLineEdit" name="editAdminListen">
+         <property name="placeholderText"><string>留空 = 自动分配 127.0.0.1:0；自定义如 127.0.0.1:9091</string></property>
+         <property name="toolTip"><string>客户端管理 / 统计 API 监听地址。
+留空时 GUI 自动用 127.0.0.1:0（随机端口）。
+非 loopback 地址（如 0.0.0.0:9091）必须设置 admin_token，否则内核拒绝启动。</string></property>
+        </widget>
+       </item>
+       <item row="38" column="0">
+        <widget class="QLabel"><property name="text"><string>Admin Token (Bearer)</string></property></widget>
+       </item>
+       <item row="38" column="1">
+        <widget class="QLineEdit" name="editAdminToken">
+         <property name="placeholderText"><string>非 loopback 监听时必填</string></property>
+         <property name="echoMode"><enum>QLineEdit::PasswordEchoOnEdit</enum></property>
+        </widget>
+       </item>
+       <item row="39" column="0">
+        <widget class="QLabel"><property name="text"><string>启用 pprof 性能分析</string></property></widget>
+       </item>
+       <item row="39" column="1">
+        <widget class="QCheckBox" name="checkEnablePprof">
+         <property name="toolTip"><string>暴露 /debug/pprof/* 端点（受 admin_token 保护）。
+仅排障用，生产环境慎开。</string></property>
+        </widget>
+       </item>
        <!-- 调试 -->
-       <item row="28" column="0">
+       <item row="40" column="0">
         <widget class="QLabel"><property name="text"><string>TLS Key Log 路径</string></property></widget>
        </item>
-       <item row="28" column="1">
+       <item row="40" column="1">
         <widget class="QLineEdit" name="editKeyLogPath">
          <property name="placeholderText"><string>留空不启用（Wireshark 调试用）</string></property>
         </widget>

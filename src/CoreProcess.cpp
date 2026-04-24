@@ -48,7 +48,9 @@ bool CoreProcess::start(const TunnelNode &node)
         return false;
     }
 
-    // 2. 写临时 config JSON（admin_listen 使用随机端口 :0）
+    // 2. 写临时 config JSON
+    //    admin_listen 优先级：节点显式配置 > fallback "127.0.0.1:0"（随机端口，从 stdout 解析）
+    //    若节点设置了非 loopback 监听地址，必须同时配置 admin_token，否则内核拒绝启动。
     cleanupTempFile();
     QString tmpDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
     m_tempConfig = tmpDir + "/connect-ip-tunnel-gui-config.json";

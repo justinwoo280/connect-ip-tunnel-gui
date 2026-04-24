@@ -19,10 +19,14 @@ struct TunnelNode {
 
     // ── TLS ──────────────────────────────────────────────────────
     QString serverName;               // SNI，留空则与 serverAddr host 相同
-    bool    insecureSkipVerify = false;
+    // 注意：内核已永久移除 tls.insecure_skip_verify（写出该字段会触发 deprecated 警告，
+    // 写出 true 直接拒绝启动），GUI 不再生成该字段。
     bool    enablePQC          = false;
     bool    useMozillaCA       = true;
     bool    useSystemCAs       = false;
+    // ServerCAFile 自签 CA 部署的首选信任锚（优先级高于 use_mozilla_ca / use_system_cas）
+    // PEM 格式，可包含多个证书；企业 mTLS 部署通常用 certsrv 签发的 ca.crt。
+    QString serverCAFile;
     bool    enableECH          = true;
     QString echDomain;                // 留空则与 serverName 相同
     QString echDohServer       = "https://cloudflare-dns.com/dns-query";
@@ -76,11 +80,11 @@ struct TunnelNode {
 
     // ── ConnectIP 高级 ───────────────────────────────────────────
     bool    enableReconnect        = true;
-    // 多 session 并行：1 = 单连接（默认）。
+    // 多 session 并行：默认 4，对齐 config.client.example.json 的推荐值。
     // 多核 / 高带宽场景建议 2-8（如 4 跑 8-16 Gbps）。
     // 客户端会并行建立 N 条 CONNECT-IP session 共享流量，
     // 建议同时启用 perSessionReconnect 让每条 session 独立重连。
-    int     numSessions            = 1;
+    int     numSessions            = 4;
     int     addressAssignTimeoutSec = 30;  // ADDRESS_ASSIGN 超时（秒）
     int     maxReconnectDelaySec    = 30;  // 最大重连延迟（秒）
 
@@ -92,10 +96,28 @@ struct TunnelNode {
 
     // ── Bypass ───────────────────────────────────────────────────
     bool    enableBypass = true;  // 路由绕行防止回环
+    bool    bypassStrict = false; // 严格模式：探测失败时返回错误而非降级
 
     // ── 拥塞控制 ─────────────────────────────────────────────────
     // 留空或 "cubic" 使用默认 CUBIC，"bbr2" 使用 BBRv2（推荐，对抗运营商 QoS）
     QString congestionAlgo = "bbr2";
+
+    // ── BBRv2 子参数（仅 congestionAlgo == "bbr2" 时生效）─────────
+    // 留空 / 0 = 走内核默认值（不写入 JSON）
+    double  bbr2LossThreshold       = 0.0;   // 0 = 内核默认 0.015 (1.5%)
+    double  bbr2Beta                = 0.0;   // 0 = 内核默认 0.3
+    int     bbr2StartupFullBwRounds = 0;     // 0 = 内核默认 3
+    int     bbr2ProbeRTTPeriodSec   = 0;     // 0 = 内核默认 10s
+    int     bbr2ProbeRTTDurationMs  = 0;     // 0 = 内核默认 200ms
+    QString bbr2BwLoReduction;               // 留空 = 内核默认 "default"
+    bool    bbr2Aggressive          = false; // 激进模式：初始窗口更大
+
+    // ── 管理 / 调试 API（admin_listen / admin_token / pprof）─────
+    // adminListen 留空时由 CoreProcess 自动分配 127.0.0.1:0；
+    // 非 loopback 地址必须填 adminToken，否则内核拒绝启动。
+    QString adminListen;
+    QString adminToken;
+    bool    enablePprof = false;
 
     // ── 调试 ─────────────────────────────────────────────────────
     QString keyLogPath;  // TLS key log 路径（Wireshark 调试用，留空不启用）
@@ -106,7 +128,7 @@ struct TunnelNode {
     // ────────────────────────────────────────────────────────────
     // 生成内核 config.json（ClientConfig）
     // ────────────────────────────────────────────────────────────
-    QJsonObject toClientConfig(const QString &adminListen = "127.0.0.1:0") const {
+    QJsonObject toClientConfig(const QString &adminListenFallback = "127.0.0.1:0") const {
         // 解析 serverAddr 的 host 部分（用于 SNI/ECH fallback）
         QString host = serverAddr;
         int colonPos = serverAddr.lastIndexOf(':');
@@ -147,14 +169,17 @@ struct TunnelNode {
         QJsonObject bypass;
         bypass["enable"]      = enableBypass;
         bypass["server_addr"] = host;
+        if (bypassStrict) bypass["strict"] = true;
 
         // TLS（含 mTLS 客户端证书，唯一鉴权方式）
+        // 注意：内核已永久移除 tls.insecure_skip_verify，GUI 永远不写出该字段。
         QJsonObject tls;
         tls["server_name"]          = sni;
-        tls["insecure_skip_verify"] = insecureSkipVerify;
         tls["enable_pqc"]           = enablePQC;
         tls["use_system_cas"]       = useSystemCAs;
         tls["use_mozilla_ca"]       = useMozillaCA;
+        // 信任锚优先级：server_ca_file > use_mozilla_ca > use_system_cas
+        if (!serverCAFile.isEmpty()) tls["server_ca_file"] = serverCAFile;
         tls["enable_ech"]           = enableECH;
         if (enableECH) {
             if (!echConfigListB64.isEmpty()) {
@@ -204,6 +229,20 @@ struct TunnelNode {
         if (!congestionAlgo.isEmpty() && congestionAlgo != "cubic") {
             QJsonObject congestion;
             congestion["algorithm"] = congestionAlgo;
+            // BBRv2 子参数：仅 bbr2 模式下生效，全部默认 0/空 = 不写出，由内核取默认
+            if (congestionAlgo == "bbr2") {
+                QJsonObject bbr2;
+                if (bbr2LossThreshold > 0)        bbr2["loss_threshold"]          = bbr2LossThreshold;
+                if (bbr2Beta > 0)                  bbr2["beta"]                    = bbr2Beta;
+                if (bbr2StartupFullBwRounds > 0)   bbr2["startup_full_bw_rounds"]  = bbr2StartupFullBwRounds;
+                if (bbr2ProbeRTTPeriodSec > 0)
+                    bbr2["probe_rtt_period"]   = QString("%1s").arg(bbr2ProbeRTTPeriodSec);
+                if (bbr2ProbeRTTDurationMs > 0)
+                    bbr2["probe_rtt_duration"] = QString("%1ms").arg(bbr2ProbeRTTDurationMs);
+                if (!bbr2BwLoReduction.isEmpty()) bbr2["bw_lo_reduction"] = bbr2BwLoReduction;
+                if (bbr2Aggressive)                bbr2["aggressive"]      = true;
+                if (!bbr2.isEmpty()) congestion["bbr2"] = bbr2;
+            }
             http3["congestion"] = congestion;
         }
 
@@ -233,7 +272,11 @@ struct TunnelNode {
         client["tls"]          = tls;
         client["http3"]        = http3;
         client["connect_ip"]   = connectip;
-        client["admin_listen"] = adminListen;
+        // admin_listen：节点显式配置 > 调用方 fallback（CoreProcess 默认 127.0.0.1:0）
+        client["admin_listen"] = adminListen.isEmpty() ? adminListenFallback : adminListen;
+        // admin_token：非 loopback 地址必填，否则内核拒启动；GUI 让用户自行决定
+        if (!adminToken.isEmpty()) client["admin_token"] = adminToken;
+        if (enablePprof)            client["enable_pprof"] = true;
 
         // Root Config
         QJsonObject root;
@@ -251,10 +294,11 @@ struct TunnelNode {
         o["uri"]               = uri;
         o["authority"]         = authority;
         o["serverName"]        = serverName;
-        o["insecureSkipVerify"] = insecureSkipVerify;
+        // 注：insecureSkipVerify 字段已永久移除（内核拒绝该字段），不再持久化
         o["enablePQC"]         = enablePQC;
         o["useMozillaCA"]      = useMozillaCA;
         o["useSystemCAs"]      = useSystemCAs;
+        o["serverCAFile"]      = serverCAFile;
         o["enableECH"]         = enableECH;
         o["echDomain"]         = echDomain;
         o["echDohServer"]      = echDohServer;
@@ -295,7 +339,20 @@ struct TunnelNode {
         o["unhealthyThreshold"]      = unhealthyThreshold;
         o["perSessionReconnect"]     = perSessionReconnect;
         o["enableBypass"]      = enableBypass;
+        o["bypassStrict"]      = bypassStrict;
         o["congestionAlgo"]    = congestionAlgo;
+        // BBRv2 子参数
+        o["bbr2LossThreshold"]       = bbr2LossThreshold;
+        o["bbr2Beta"]                = bbr2Beta;
+        o["bbr2StartupFullBwRounds"] = bbr2StartupFullBwRounds;
+        o["bbr2ProbeRTTPeriodSec"]   = bbr2ProbeRTTPeriodSec;
+        o["bbr2ProbeRTTDurationMs"]  = bbr2ProbeRTTDurationMs;
+        o["bbr2BwLoReduction"]       = bbr2BwLoReduction;
+        o["bbr2Aggressive"]          = bbr2Aggressive;
+        // 管理 / 调试 API
+        o["adminListen"]       = adminListen;
+        o["adminToken"]        = adminToken;
+        o["enablePprof"]       = enablePprof;
         o["keyLogPath"]        = keyLogPath;
         return o;
     }
@@ -308,10 +365,11 @@ struct TunnelNode {
         n.uri                = o["uri"].toString(); // 完整 URL，留空需用户填写
         n.authority          = o["authority"].toString();
         n.serverName         = o["serverName"].toString();
-        n.insecureSkipVerify = o["insecureSkipVerify"].toBool(false);
+        // insecureSkipVerify 字段已永久移除：旧节点 JSON 中残留时静默忽略
         n.enablePQC          = o["enablePQC"].toBool(false);
         n.useMozillaCA       = o["useMozillaCA"].toBool(true);
         n.useSystemCAs       = o["useSystemCAs"].toBool(false);
+        n.serverCAFile       = o["serverCAFile"].toString();
         n.enableECH          = o["enableECH"].toBool(true);
         n.echDomain          = o["echDomain"].toString();
         n.echDohServer       = o["echDohServer"].toString("https://cloudflare-dns.com/dns-query");
@@ -342,7 +400,7 @@ struct TunnelNode {
         n.obfsType           = o["obfsType"].toString();
         n.obfsPassword       = o["obfsPassword"].toString();
         n.enableReconnect    = o["enableReconnect"].toBool(true);
-        n.numSessions        = o["numSessions"].toInt(1);
+        n.numSessions        = o["numSessions"].toInt(4);
         // 默认值与内核 (option/validate.go) 一致：maxIdleTimeout=45s, keepAlive=15s
         n.maxIdleTimeoutSec  = o["maxIdleTimeoutSec"].toInt(45);
         n.keepAlivePeriodSec = o["keepAlivePeriodSec"].toInt(15);
@@ -353,7 +411,20 @@ struct TunnelNode {
         n.unhealthyThreshold      = o["unhealthyThreshold"].toInt(3);
         n.perSessionReconnect     = o["perSessionReconnect"].toBool(true);
         n.enableBypass       = o["enableBypass"].toBool(true);
+        n.bypassStrict       = o["bypassStrict"].toBool(false);
         n.congestionAlgo     = o["congestionAlgo"].toString("bbr2");
+        // BBRv2 子参数
+        n.bbr2LossThreshold       = o["bbr2LossThreshold"].toDouble(0.0);
+        n.bbr2Beta                = o["bbr2Beta"].toDouble(0.0);
+        n.bbr2StartupFullBwRounds = o["bbr2StartupFullBwRounds"].toInt(0);
+        n.bbr2ProbeRTTPeriodSec   = o["bbr2ProbeRTTPeriodSec"].toInt(0);
+        n.bbr2ProbeRTTDurationMs  = o["bbr2ProbeRTTDurationMs"].toInt(0);
+        n.bbr2BwLoReduction       = o["bbr2BwLoReduction"].toString();
+        n.bbr2Aggressive          = o["bbr2Aggressive"].toBool(false);
+        // 管理 / 调试 API
+        n.adminListen        = o["adminListen"].toString();
+        n.adminToken         = o["adminToken"].toString();
+        n.enablePprof        = o["enablePprof"].toBool(false);
         n.keyLogPath         = o["keyLogPath"].toString();
         return n;
     }

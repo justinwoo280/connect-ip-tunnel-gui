@@ -107,6 +107,9 @@ EditNodeDialog::EditNodeDialog(QWidget *parent)
             this, &EditNodeDialog::onBrowseCert);
     connect(ui->btnBrowseKey, &QPushButton::clicked,
             this, &EditNodeDialog::onBrowseKey);
+    if (auto *btn = findChild<QPushButton*>(QStringLiteral("btnBrowseServerCA")))
+        connect(btn, &QPushButton::clicked,
+                this, &EditNodeDialog::onBrowseServerCA);
 
     updateECHVisibility();
     updateAddressAssignVisibility();
@@ -133,10 +136,12 @@ void EditNodeDialog::setNode(const TunnelNode &node)
 
     // TLS/ECH
     ui->editServerName->setText(node.serverName);
-    ui->checkInsecureSkipVerify->setChecked(node.insecureSkipVerify);
+    // 注：insecureSkipVerify 字段已移除（内核拒绝该字段），UI 控件已删除
     ui->checkEnablePQC->setChecked(node.enablePQC);
     ui->checkUseMozillaCA->setChecked(node.useMozillaCA);
     ui->checkUseSystemCAs->setChecked(node.useSystemCAs);
+    if (auto *e = findChild<QLineEdit*>(QStringLiteral("editServerCAFile")))
+        e->setText(node.serverCAFile);
     ui->checkEnableECH->setChecked(node.enableECH);
     ui->editECHDomain->setText(node.echDomain);
     ui->editECHDohServer->setText(node.echDohServer);
@@ -182,8 +187,41 @@ void EditNodeDialog::setNode(const TunnelNode &node)
 
     // Bypass
     ui->checkEnableBypass->setChecked(node.enableBypass);
+    if (auto *c = findChild<QCheckBox*>(QStringLiteral("checkBypassStrict")))
+        c->setChecked(node.bypassStrict);
     // 拥塞控制：bbr2=index0, cubic=index1
     ui->comboCongestionAlgo->setCurrentIndex(node.congestionAlgo == "cubic" ? 1 : 0);
+
+    // BBRv2 子参数（0/空 = 内核默认，UI 用 specialValueText 显示）
+    if (auto *s = findChild<QDoubleSpinBox*>(QStringLiteral("spinBBR2LossThreshold")))
+        s->setValue(node.bbr2LossThreshold);
+    if (auto *s = findChild<QDoubleSpinBox*>(QStringLiteral("spinBBR2Beta")))
+        s->setValue(node.bbr2Beta);
+    if (auto *s = findChild<QSpinBox*>(QStringLiteral("spinBBR2StartupFullBwRounds")))
+        s->setValue(node.bbr2StartupFullBwRounds);
+    if (auto *s = findChild<QSpinBox*>(QStringLiteral("spinBBR2ProbeRTTPeriod")))
+        s->setValue(node.bbr2ProbeRTTPeriodSec);
+    if (auto *s = findChild<QSpinBox*>(QStringLiteral("spinBBR2ProbeRTTDuration")))
+        s->setValue(node.bbr2ProbeRTTDurationMs);
+    if (auto *combo = findChild<QComboBox*>(QStringLiteral("comboBBR2BwLoReduction"))) {
+        // index 0 = 内核默认（留空），1=default, 2=minrtt, 3=inflight, 4=cwnd
+        int idx = 0;
+        if (node.bbr2BwLoReduction == "default")  idx = 1;
+        else if (node.bbr2BwLoReduction == "minrtt")   idx = 2;
+        else if (node.bbr2BwLoReduction == "inflight") idx = 3;
+        else if (node.bbr2BwLoReduction == "cwnd")     idx = 4;
+        combo->setCurrentIndex(idx);
+    }
+    if (auto *c = findChild<QCheckBox*>(QStringLiteral("checkBBR2Aggressive")))
+        c->setChecked(node.bbr2Aggressive);
+
+    // 管理 / 调试 API
+    if (auto *e = findChild<QLineEdit*>(QStringLiteral("editAdminListen")))
+        e->setText(node.adminListen);
+    if (auto *e = findChild<QLineEdit*>(QStringLiteral("editAdminToken")))
+        e->setText(node.adminToken);
+    if (auto *c = findChild<QCheckBox*>(QStringLiteral("checkEnablePprof")))
+        c->setChecked(node.enablePprof);
 
     // HTTP3 窗口调优
     ui->checkDisablePathMTUProbe->setChecked(node.disablePathMTUProbe);
@@ -235,10 +273,12 @@ TunnelNode EditNodeDialog::getNode() const
 
     // TLS/ECH
     n.serverName         = ui->editServerName->text().trimmed();
-    n.insecureSkipVerify = ui->checkInsecureSkipVerify->isChecked();
+    // insecureSkipVerify 字段已移除：内核拒绝该字段，GUI 也不再读取
     n.enablePQC          = ui->checkEnablePQC->isChecked();
     n.useMozillaCA       = ui->checkUseMozillaCA->isChecked();
     n.useSystemCAs       = ui->checkUseSystemCAs->isChecked();
+    if (auto *e = findChild<QLineEdit*>(QStringLiteral("editServerCAFile")))
+        n.serverCAFile = e->text().trimmed();
     n.enableECH          = ui->checkEnableECH->isChecked();
     n.echDomain          = ui->editECHDomain->text().trimmed();
     n.echDohServer       = ui->editECHDohServer->text().trimmed();
@@ -283,7 +323,40 @@ TunnelNode EditNodeDialog::getNode() const
     
     // Bypass
     n.enableBypass = ui->checkEnableBypass->isChecked();
+    if (auto *c = findChild<QCheckBox*>(QStringLiteral("checkBypassStrict")))
+        n.bypassStrict = c->isChecked();
     n.congestionAlgo = (ui->comboCongestionAlgo->currentIndex() == 1) ? "cubic" : "bbr2";
+
+    // BBRv2 子参数
+    if (auto *s = findChild<QDoubleSpinBox*>(QStringLiteral("spinBBR2LossThreshold")))
+        n.bbr2LossThreshold = s->value();
+    if (auto *s = findChild<QDoubleSpinBox*>(QStringLiteral("spinBBR2Beta")))
+        n.bbr2Beta = s->value();
+    if (auto *s = findChild<QSpinBox*>(QStringLiteral("spinBBR2StartupFullBwRounds")))
+        n.bbr2StartupFullBwRounds = s->value();
+    if (auto *s = findChild<QSpinBox*>(QStringLiteral("spinBBR2ProbeRTTPeriod")))
+        n.bbr2ProbeRTTPeriodSec = s->value();
+    if (auto *s = findChild<QSpinBox*>(QStringLiteral("spinBBR2ProbeRTTDuration")))
+        n.bbr2ProbeRTTDurationMs = s->value();
+    if (auto *combo = findChild<QComboBox*>(QStringLiteral("comboBBR2BwLoReduction"))) {
+        switch (combo->currentIndex()) {
+        case 1: n.bbr2BwLoReduction = "default"; break;
+        case 2: n.bbr2BwLoReduction = "minrtt"; break;
+        case 3: n.bbr2BwLoReduction = "inflight"; break;
+        case 4: n.bbr2BwLoReduction = "cwnd"; break;
+        default: n.bbr2BwLoReduction = ""; break; // 内核默认
+        }
+    }
+    if (auto *c = findChild<QCheckBox*>(QStringLiteral("checkBBR2Aggressive")))
+        n.bbr2Aggressive = c->isChecked();
+
+    // 管理 / 调试 API
+    if (auto *e = findChild<QLineEdit*>(QStringLiteral("editAdminListen")))
+        n.adminListen = e->text().trimmed();
+    if (auto *e = findChild<QLineEdit*>(QStringLiteral("editAdminToken")))
+        n.adminToken = e->text();  // token 保留前后空格也无意义，但避免改密码语义
+    if (auto *c = findChild<QCheckBox*>(QStringLiteral("checkEnablePprof")))
+        n.enablePprof = c->isChecked();
 
     // HTTP3 窗口调优
     n.disablePathMTUProbe    = ui->checkDisablePathMTUProbe->isChecked();
@@ -347,6 +420,20 @@ void EditNodeDialog::onBrowseKey()
     );
     if (!path.isEmpty())
         ui->editClientKeyFile->setText(path);
+}
+
+void EditNodeDialog::onBrowseServerCA()
+{
+    QString path = QFileDialog::getOpenFileName(
+        this,
+        tr("选择服务端 CA 证书"),
+        {},
+        tr("PEM 证书 (*.crt *.pem *.cer);;所有文件 (*)")
+    );
+    if (!path.isEmpty()) {
+        if (auto *e = findChild<QLineEdit*>(QStringLiteral("editServerCAFile")))
+            e->setText(path);
+    }
 }
 
 void EditNodeDialog::updateECHVisibility()

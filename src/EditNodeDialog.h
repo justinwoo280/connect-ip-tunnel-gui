@@ -23,6 +23,7 @@ private slots:
     void onWaitForAddressAssignToggled(bool checked);
     void onBrowseCert();
     void onBrowseKey();
+    void onBrowseServerCA();
 
 private:
     void updateECHVisibility();
